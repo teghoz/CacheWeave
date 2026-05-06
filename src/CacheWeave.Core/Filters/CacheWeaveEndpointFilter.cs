@@ -108,7 +108,12 @@ public sealed class CacheWeaveEndpointFilter : IEndpointFilter
                 segments.Add(string.Join(sep, paramSegments));
         }
 
-        return string.Join(sep, segments);
+        var key = string.Join(sep, segments);
+
+        if (!string.IsNullOrWhiteSpace(_options.GlobalKeyPrefix))
+            key = $"{_options.GlobalKeyPrefix}{sep}{key}";
+
+        return key;
     }
 
     private TimeSpan? ResolveExpiry()

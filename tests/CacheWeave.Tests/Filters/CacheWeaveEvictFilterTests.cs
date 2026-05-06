@@ -192,4 +192,96 @@ public class CacheWeaveEvictFilterTests
 
         _provider.Verify(p => p.RemoveAsync("k", default), Times.Once);
     }
+
+    // -------------------------------------------------------------------------
+    // Neither Key nor Prefix — logs warning, no eviction
+    // -------------------------------------------------------------------------
+
+    private class EmptyEvictController : ControllerBase
+    {
+        [CacheWeaveEvict]
+        public IActionResult Delete() => Ok();
+    }
+
+    [Fact]
+    public async Task OnActionExecutionAsync_LogsWarning_WhenNeitherKeyNorPrefix()
+    {
+        var sut = MakeSut();
+        var (ctx, next) = MakeContext<EmptyEvictController>();
+
+        await sut.OnActionExecutionAsync(ctx, next);
+
+        _provider.Verify(p => p.RemoveAsync(It.IsAny<string>(), default), Times.Never);
+        _provider.Verify(p => p.RemoveByPrefixAsync(It.IsAny<string>(), default), Times.Never);
+    }
+
+    // -------------------------------------------------------------------------
+    // Fault tolerance — RemoveAsync throws, should not propagate
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task OnActionExecutionAsync_DoesNotThrow_WhenRemoveAsyncThrows()
+    {
+        _provider.Setup(p => p.RemoveAsync("products:1", default))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var sut = MakeSut();
+        var (ctx, next) = MakeContext<EvictByKeyController>();
+
+        // Should not throw
+        var act = async () => await sut.OnActionExecutionAsync(ctx, next);
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task OnActionExecutionAsync_DoesNotThrow_WhenRemoveByPrefixAsyncThrows()
+    {
+        _provider.Setup(p => p.RemoveByPrefixAsync("products:", default))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var sut = MakeSut();
+        var (ctx, next) = MakeContext<EvictByPrefixController>();
+
+        var act = async () => await sut.OnActionExecutionAsync(ctx, next);
+        await act.Should().NotThrowAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // Metrics path — EnableMetrics = true records eviction counters
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task OnActionExecutionAsync_RecordsMetrics_WhenEnabled()
+    {
+        var opts = new CacheWeaveOptions { EnableMetrics = true };
+        var sut = new CacheWeaveEvictFilter(
+            _provider.Object,
+            Options.Create(opts),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CacheWeaveEvictFilter>.Instance);
+
+        var (ctx, next) = MakeContext<EvictByKeyController>();
+
+        // Should not throw even when metrics are enabled
+        var act = async () => await sut.OnActionExecutionAsync(ctx, next);
+        await act.Should().NotThrowAsync();
+
+        _provider.Verify(p => p.RemoveAsync("products:1", default), Times.Once);
+    }
+
+    [Fact]
+    public async Task OnActionExecutionAsync_RecordsPrefixMetrics_WhenEnabled()
+    {
+        var opts = new CacheWeaveOptions { EnableMetrics = true };
+        var sut = new CacheWeaveEvictFilter(
+            _provider.Object,
+            Options.Create(opts),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CacheWeaveEvictFilter>.Instance);
+
+        var (ctx, next) = MakeContext<EvictByPrefixController>();
+
+        var act = async () => await sut.OnActionExecutionAsync(ctx, next);
+        await act.Should().NotThrowAsync();
+
+        _provider.Verify(p => p.RemoveByPrefixAsync("products:", default), Times.Once);
+    }
 }

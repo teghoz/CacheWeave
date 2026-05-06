@@ -82,6 +82,10 @@ public sealed class CacheWeavePageFilter : IAsyncPageFilter
         }
 
         var cacheKey = string.Join(sep, segments);
+
+        if (!string.IsNullOrWhiteSpace(_options.GlobalKeyPrefix))
+            cacheKey = $"{_options.GlobalKeyPrefix}{sep}{cacheKey}";
+
         _logger.LogDebug("CacheWeave (Page): resolving key '{Key}'", cacheKey);
 
         var cached = await _cacheProvider.GetAsync(cacheKey);

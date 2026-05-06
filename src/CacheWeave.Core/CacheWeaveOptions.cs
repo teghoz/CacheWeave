@@ -33,6 +33,15 @@ public sealed class CacheWeaveOptions
     public string KeySeparator { get; set; } = ":";
 
     /// <summary>
+    /// Optional global key prefix prepended to every cache key (reads, writes, and evictions).
+    /// Use this to namespace all keys for a project or service when multiple applications
+    /// share the same Redis instance.
+    /// Example: prefix "my-app" with key "products:list" → "my-app:products:list"
+    /// The <see cref="KeySeparator"/> is inserted between the prefix and the rest of the key.
+    /// </summary>
+    public string? GlobalKeyPrefix { get; set; }
+
+    /// <summary>
     /// Optional global key version. When set, it is injected as the second segment
     /// of every cache key, immediately after the base key.
     /// Example: base key "material-types" with version "v2" → "material-types:v2:region=US"

@@ -92,7 +92,13 @@ public sealed class DefaultCacheKeyBuilder : ICacheKeyBuilder
             }
         }
 
-        return string.Join(sep, segments);
+        var key = string.Join(sep, segments);
+
+        // 5. Global key prefix — prepended last so it wraps the entire assembled key
+        if (!string.IsNullOrWhiteSpace(_options.GlobalKeyPrefix))
+            key = $"{_options.GlobalKeyPrefix}{sep}{key}";
+
+        return key;
     }
 
     /// <summary>

@@ -60,19 +60,39 @@ public sealed class CacheWeaveEvictFilter : IAsyncActionFilter
 
             if (attribute.Key is not null)
             {
-                Log("CacheWeave: evicting key '{Key}'", attribute.Key);
-                await _cacheProvider.RemoveAsync(attribute.Key);
+                var evictKey = ApplyGlobalPrefix(attribute.Key);
+                Log("CacheWeave: evicting key '{Key}'", evictKey);
+                try
+                {
+                    await _cacheProvider.RemoveAsync(evictKey);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "CacheWeave: eviction failed for key '{Key}' — cache may be stale", evictKey);
+                    continue;
+                }
 
                 if (_options.EnableMetrics)
-                    CacheWeaveMeter.Evictions.Add(1, new System.Diagnostics.TagList { { "cache.key", attribute.Key } });
+                    CacheWeaveMeter.Evictions.Add(1, new System.Diagnostics.TagList { { "cache.key", evictKey } });
             }
             else if (attribute.Prefix is not null)
             {
-                Log("CacheWeave: evicting by prefix '{Prefix}'", attribute.Prefix);
-                await _cacheProvider.RemoveByPrefixAsync(attribute.Prefix);
+                var evictPrefix = ApplyGlobalPrefix(attribute.Prefix);
+                Log("CacheWeave: evicting by prefix '{Prefix}'", evictPrefix);
+                try
+                {
+                    await _cacheProvider.RemoveByPrefixAsync(evictPrefix);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "CacheWeave: eviction failed for prefix '{Prefix}' — cache may be stale", evictPrefix);
+                    continue;
+                }
 
                 if (_options.EnableMetrics)
-                    CacheWeaveMeter.Evictions.Add(1, new System.Diagnostics.TagList { { "cache.prefix", attribute.Prefix } });
+                    CacheWeaveMeter.Evictions.Add(1, new System.Diagnostics.TagList { { "cache.prefix", evictPrefix } });
             }
             else
             {
@@ -86,4 +106,9 @@ public sealed class CacheWeaveEvictFilter : IAsyncActionFilter
 
     private void Log(string message, params object?[] args)
         => _logger.Log(_options.DiagnosticLogLevel, message, args);
+
+    private string ApplyGlobalPrefix(string value)
+        => string.IsNullOrWhiteSpace(_options.GlobalKeyPrefix)
+            ? value
+            : $"{_options.GlobalKeyPrefix}{_options.KeySeparator}{value}";
 }

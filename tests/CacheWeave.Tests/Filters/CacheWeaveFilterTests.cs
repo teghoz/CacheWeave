@@ -369,4 +369,67 @@ public class CacheWeaveFilterTests
         [CacheWeave("test-key", ExpirySeconds = 0)]
         public IActionResult Get() => Ok();
     }
+
+    // -------------------------------------------------------------------------
+    // Fault tolerance — cache read failure falls through to action
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task OnActionExecutionAsync_FallsThroughToAction_WhenGetAsyncThrows()
+    {
+        _keyBuilder.Setup(k => k.BuildAsync(It.IsAny<CacheWeaveAttribute>(), It.IsAny<ActionExecutingContext>()))
+            .ReturnsAsync("test-key");
+        _provider.Setup(p => p.GetAsync("test-key", default))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var sut = MakeSut();
+        var (ctx, next, setResult) = MakeContextPair(new CacheWeaveAttribute("test-key"));
+        setResult(new OkObjectResult(new { id = 1 }));
+        var nextCalled = false;
+        ActionExecutionDelegate wrappedNext = () => { nextCalled = true; return next(); };
+
+        // Should not throw
+        await sut.OnActionExecutionAsync(ctx, wrappedNext);
+
+        nextCalled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task OnActionExecutionAsync_StillReturnsResponse_WhenSetAsyncThrows()
+    {
+        _keyBuilder.Setup(k => k.BuildAsync(It.IsAny<CacheWeaveAttribute>(), It.IsAny<ActionExecutingContext>()))
+            .ReturnsAsync("test-key");
+        _provider.Setup(p => p.GetAsync("test-key", default)).ReturnsAsync((string?)null);
+        _provider.Setup(p => p.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>(), default))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var sut = MakeSut();
+        var (ctx, next, setResult) = MakeContextPair(new CacheWeaveAttribute("test-key"));
+        setResult(new OkObjectResult(new { id = 1 }));
+
+        // Should not throw — response is still returned
+        await sut.OnActionExecutionAsync(ctx, next);
+    }
+
+    [Fact]
+    public async Task OnActionExecutionAsync_StillServesCachedResponse_WhenSlidingExpiryRefreshThrows()
+    {
+        var cached = _serializer.Serialize(new { id = 1 });
+        _keyBuilder.Setup(k => k.BuildAsync(It.IsAny<CacheWeaveAttribute>(), It.IsAny<ActionExecutingContext>()))
+            .ReturnsAsync("test-key");
+        _provider.Setup(p => p.GetAsync("test-key", default)).ReturnsAsync(cached);
+        _provider.Setup(p => p.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>(), default))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var sut = MakeSut();
+        var method = typeof(SlidingController).GetMethod(nameof(SlidingController.Get))!;
+        var (ctx, next, _) = MakeContextPair(new CacheWeaveAttribute("test-key") { SlidingExpiry = true, ExpirySeconds = 60 });
+        ((ControllerActionDescriptor)ctx.ActionDescriptor).MethodInfo = method;
+
+        // Should not throw — cached response is still served
+        await sut.OnActionExecutionAsync(ctx, next);
+
+        ctx.Result.Should().BeOfType<ContentResult>()
+            .Which.StatusCode.Should().Be(200);
+    }
 }

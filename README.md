@@ -39,6 +39,7 @@ public async Task<IActionResult> GetProducts([FromQuery] int page = 1)
 | **OpenTelemetry** | Hit/miss/set/eviction counters + duration histogram + Activity spans, all opt-in |
 | **Configurable logging** | Diagnostic log level set globally — surface cache activity at `Information` in production |
 | **Programmatic API** | `ICacheWeaveService` for `GetOrSetAsync`, `SetAsync`, `InvalidateAsync` |
+| **Fault-tolerant** | All cache I/O wrapped in try/catch — Redis outage degrades to cache-miss behaviour, never a 500 |
 | **7 providers** | Redis, InMemory, SQLite, NCache, DynamoDB, Memcached, FASTER KV |
 | **Multi-target** | `net8.0`, `net9.0`, `net10.0` |
 
@@ -60,6 +61,7 @@ dotnet add package CacheWeave.Redis   # or CacheWeave.InMemory, etc.
 builder.Services.AddCacheWeave(options =>
 {
     options.Serializer         = CacheWeaveSerializerType.SystemTextJson; // default
+    options.GlobalKeyPrefix    = "my-app";   // e.g. "my-app:products:list"
     options.KeyVersion         = "v1";
     options.DefaultExpiry      = TimeSpan.FromMinutes(5);
     options.EnableMetrics      = true;
@@ -99,6 +101,7 @@ All options are set via `AddCacheWeave(options => ...)`:
 | Property | Type | Default | Description |
 |---|---|---|---|
 | `KeySeparator` | `string` | `":"` | Separator between key segments |
+| `GlobalKeyPrefix` | `string?` | `null` | Prepended to every key — use to namespace keys when multiple apps share one Redis |
 | `KeyVersion` | `string?` | `null` | Global version injected after the base key |
 | `DefaultExpiry` | `TimeSpan?` | `5 min` | TTL when not set on the attribute |
 | `DefaultNoCacheCondition` | `NoCacheCondition` | `OnErrorOrEmpty` | Global skip-cache rule |

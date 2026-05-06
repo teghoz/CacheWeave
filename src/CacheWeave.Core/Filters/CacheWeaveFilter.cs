@@ -59,7 +59,17 @@ public sealed class CacheWeaveFilter : IAsyncActionFilter
             : null;
         activity?.SetTag("cache.key", cacheKey);
 
-        var cached = await _cacheProvider.GetAsync(cacheKey);
+        string? cached = null;
+        try
+        {
+            cached = await _cacheProvider.GetAsync(cacheKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "CacheWeave: cache read failed for '{Key}' — falling through to action", cacheKey);
+        }
+
         if (cached is not null)
         {
             sw?.Stop();
@@ -79,7 +89,17 @@ public sealed class CacheWeaveFilter : IAsyncActionFilter
             {
                 var expiry = ResolveExpiry(attribute);
                 if (expiry.HasValue)
-                    await _cacheProvider.SetAsync(cacheKey, cached, expiry);
+                {
+                    try
+                    {
+                        await _cacheProvider.SetAsync(cacheKey, cached, expiry);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "CacheWeave: sliding expiry refresh failed for '{Key}' — serving cached response anyway", cacheKey);
+                    }
+                }
             }
 
             context.Result = new ContentResult
@@ -122,7 +142,16 @@ public sealed class CacheWeaveFilter : IAsyncActionFilter
 
         var resolvedExpiry = ResolveExpiry(attribute);
         var serialized = _serializer.Serialize(value, value.GetType());
-        await _cacheProvider.SetAsync(cacheKey, serialized, resolvedExpiry);
+        try
+        {
+            await _cacheProvider.SetAsync(cacheKey, serialized, resolvedExpiry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "CacheWeave: cache write failed for '{Key}' — response will not be cached", cacheKey);
+            return;
+        }
 
         if (_options.EnableMetrics)
             CacheWeaveMeter.Sets.Add(1, new TagList { { "cache.key", cacheKey } });
