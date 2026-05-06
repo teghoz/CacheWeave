@@ -10,15 +10,24 @@ on:
         description: 'Package version (e.g. 1.0.1). Overrides the git tag.'
         required: true
         type: string
+      release_notes:
+        description: 'Release notes (markdown). Used for NuGet PackageReleaseNotes and GitHub Release body.'
+        required: false
+        type: string
 
 jobs:
   publish:
     name: Build, Test & Publish
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write   # required to create GitHub Releases
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed to read annotated tag messages
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -28,16 +37,21 @@ jobs:
             9.x
             10.x
 
-      - name: Resolve version
-        id: version
+      - name: Resolve version and release notes
+        id: meta
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ inputs.version }}"
+            NOTES="${{ inputs.release_notes }}"
           else
             # Strip leading 'v' from tag name (v1.0.1 → 1.0.1)
             VERSION="${GITHUB_REF_NAME#v}"
+            # Read the body of the annotated tag (everything after the first blank line)
+            NOTES="$(git tag -l --format='%(contents)' "${GITHUB_REF_NAME}")"
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          # Write notes to a file to avoid shell quoting issues with multiline text
+          printf '%s' "$NOTES" > /tmp/release_notes.md
           echo "Publishing version $VERSION"
 
       - name: Restore dependencies
@@ -48,7 +62,7 @@ jobs:
           dotnet build CacheWeave.slnx
           --configuration Release
           --no-restore
-          -p:Version=${{ steps.version.outputs.VERSION }}
+          -p:Version=${{ steps.meta.outputs.VERSION }}
 
       - name: Test
         run: >
@@ -59,6 +73,7 @@ jobs:
 
       - name: Pack all packages
         run: |
+          NOTES="$(cat /tmp/release_notes.md)"
           PROJECTS=(
             src/CacheWeave.Core/CacheWeave.Core.csproj
             src/CacheWeave.Redis/CacheWeave.Redis.csproj
@@ -75,7 +90,8 @@ jobs:
               --configuration Release \
               --no-build \
               --output ./nupkg \
-              -p:Version=${{ steps.version.outputs.VERSION }}
+              -p:Version=${{ steps.meta.outputs.VERSION }} \
+              -p:PackageReleaseNotes="$NOTES"
           done
 
       - name: Publish to NuGet
@@ -84,3 +100,12 @@ jobs:
           --api-key ${{ secrets.NUGET_API_KEY }}
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          gh release create "$GITHUB_REF_NAME"
+          --title "$GITHUB_REF_NAME"
+          --notes-file /tmp/release_notes.md
+          --verify-tag
