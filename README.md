@@ -71,6 +71,9 @@ builder.Services.AddCacheWeave(options =>
 
 builder.Services.AddCacheWeaveRedis("localhost:6379");
 // or: builder.Services.AddCacheWeaveInMemory();
+
+// Wire [CacheWeave] and [CacheWeaveEvict] attributes into the MVC pipeline
+builder.Services.AddControllers().AddCacheWeaveFilters();
 ```
 
 ### 3. Decorate
