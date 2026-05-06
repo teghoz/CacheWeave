@@ -24,7 +24,7 @@ public static class ServiceCollectionExtensions
         else
             services.AddEnyimMemcached();
 
-        services.AddSingleton<ICacheProvider, MemcachedCacheProvider>();
+        services.AddSingleton<ICacheProviderInner, MemcachedCacheProvider>();
         return services;
     }
 }

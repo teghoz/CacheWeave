@@ -8,10 +8,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <RootNamespace>CacheWeave.Faster</RootNamespace>
         <AssemblyName>CacheWeave.Faster</AssemblyName>
-        <Version>1.0.0</Version>
-        <Authors>Aghogho Bernard</Authors>
         <Description>Microsoft FASTER KV provider for CacheWeave. High-throughput, low-latency local cache backed by FASTER log-structured storage.</Description>
-        <PackageTags>cache;faster;microsoft;aspnetcore;decorator;attribute</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>

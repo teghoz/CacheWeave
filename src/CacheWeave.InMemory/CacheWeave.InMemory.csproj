@@ -7,10 +7,7 @@
         <LangVersion>latest</LangVersion>
         <RootNamespace>CacheWeave.InMemory</RootNamespace>
         <AssemblyName>CacheWeave.InMemory</AssemblyName>
-        <Version>1.0.0</Version>
-        <Authors>Aghogho Bernard</Authors>
         <Description>In-memory provider for CacheWeave using Microsoft.Extensions.Caching.Memory.</Description>
-        <PackageTags>cache;memory;aspnetcore;decorator;attribute</PackageTags>
     </PropertyGroup>
 
     <ItemGroup>

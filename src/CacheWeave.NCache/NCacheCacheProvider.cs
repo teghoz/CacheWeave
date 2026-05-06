@@ -7,7 +7,7 @@ namespace CacheWeave.NCache;
 /// <summary>
 /// CacheWeave provider backed by Alachisoft NCache.
 /// </summary>
-public sealed class NCacheCacheProvider : ICacheProvider, IDisposable
+public sealed class NCacheCacheProvider : ICacheProviderInner, IDisposable
 {
     private readonly ICache _cache;
 

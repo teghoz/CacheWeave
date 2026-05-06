@@ -14,7 +14,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddCacheWeave();
         services.AddMemoryCache();
-        services.AddSingleton<ICacheProvider, InMemoryCacheProvider>();
+        services.AddSingleton<ICacheProviderInner, InMemoryCacheProvider>();
         return services;
     }
 }

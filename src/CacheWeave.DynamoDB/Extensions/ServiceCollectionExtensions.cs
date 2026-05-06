@@ -24,7 +24,7 @@ public static class ServiceCollectionExtensions
         else
             services.AddOptions<DynamoDbCacheOptions>();
 
-        services.AddSingleton<ICacheProvider, DynamoDbCacheProvider>();
+        services.AddSingleton<ICacheProviderInner, DynamoDbCacheProvider>();
         return services;
     }
 }

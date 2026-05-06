@@ -1,42 +1,68 @@
 using CacheWeave.Core.Abstractions;
-using Microsoft.Extensions.Caching.Distributed;
+using StackExchange.Redis;
+
 
 namespace CacheWeave.Redis;
 
 /// <summary>
-/// CacheWeave provider backed by Redis via <see cref="IDistributedCache"/>.
+/// CacheWeave provider backed by Redis via <see cref="IConnectionMultiplexer"/>.
+/// Supports full prefix-based invalidation via SCAN + DEL.
 /// </summary>
-public sealed class RedisCacheProvider : ICacheProvider
+public sealed class RedisCacheProvider : ICacheProviderInner
 {
-    private readonly IDistributedCache _cache;
+    private readonly IConnectionMultiplexer _multiplexer;
 
-    public RedisCacheProvider(IDistributedCache cache)
+    public RedisCacheProvider(IConnectionMultiplexer multiplexer)
     {
-        _cache = cache;
+        _multiplexer = multiplexer;
     }
 
-    public Task<string?> GetAsync(string key, CancellationToken cancellationToken = default)
-        => _cache.GetStringAsync(key, cancellationToken);
+    private IDatabase Db => _multiplexer.GetDatabase();
 
-    public Task SetAsync(string key, string value, TimeSpan? expiry = null, CancellationToken cancellationToken = default)
+    public async Task<string?> GetAsync(string key, CancellationToken cancellationToken = default)
     {
-        var options = new DistributedCacheEntryOptions();
-        if (expiry.HasValue)
-            options.SetAbsoluteExpiration(expiry.Value);
-
-        return _cache.SetStringAsync(key, value, options, cancellationToken);
+        var value = await Db.StringGetAsync(key);
+        return value.HasValue ? value.ToString() : null;
     }
 
-    public Task RemoveAsync(string key, CancellationToken cancellationToken = default)
-        => _cache.RemoveAsync(key, cancellationToken);
-
-    public Task RemoveByPrefixAsync(string prefix, CancellationToken cancellationToken = default)
+    public async Task SetAsync(string key, string value, TimeSpan? expiry = null, CancellationToken cancellationToken = default)
     {
-        // IDistributedCache does not support prefix scanning natively.
-        // Full prefix-based invalidation requires direct StackExchange.Redis access.
-        // This is a known limitation — override with RedisCacheProviderAdvanced if needed.
-        throw new NotSupportedException(
-            "Prefix-based removal requires direct IConnectionMultiplexer access. " +
-            "Use CacheWeave.Redis.Advanced for this feature.");
+        await Db.StringSetAsync(key, value, expiry);
+    }
+
+    public async Task RemoveAsync(string key, CancellationToken cancellationToken = default)
+    {
+        await Db.KeyDeleteAsync(key);
+    }
+
+    public async Task RemoveByPrefixAsync(string prefix, CancellationToken cancellationToken = default)
+    {
+        const int batchSize = 250;
+        var pattern = $"{prefix}*";
+        var db = Db;
+        var batch = new List<RedisKey>(batchSize);
+
+        foreach (var server in _multiplexer.GetServers())
+        {
+            // KeysAsync uses SCAN internally — non-blocking, cursor-based, safe for production
+            await foreach (var key in server.KeysAsync(pattern: pattern, pageSize: batchSize))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                batch.Add(key);
+
+                if (batch.Count >= batchSize)
+                {
+                    await db.KeyDeleteAsync(batch.ToArray());
+                    batch.Clear();
+                }
+            }
+
+            // Flush any remaining keys from the last partial batch
+            if (batch.Count > 0)
+            {
+                await db.KeyDeleteAsync(batch.ToArray());
+                batch.Clear();
+            }
+        }
     }
 }

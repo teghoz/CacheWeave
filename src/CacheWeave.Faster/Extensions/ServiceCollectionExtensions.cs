@@ -20,7 +20,7 @@ public static class ServiceCollectionExtensions
         else
             services.AddOptions<FasterCacheOptions>();
 
-        services.AddSingleton<ICacheProvider, FasterCacheProvider>();
+        services.AddSingleton<ICacheProviderInner, FasterCacheProvider>();
         return services;
     }
 }

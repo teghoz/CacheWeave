@@ -6,7 +6,7 @@ namespace CacheWeave.Memcached;
 /// <summary>
 /// CacheWeave provider backed by Memcached via EnyimMemcachedCore.
 /// </summary>
-public sealed class MemcachedCacheProvider : ICacheProvider
+public sealed class MemcachedCacheProvider : ICacheProviderInner
 {
     private readonly IMemcachedClient _client;
 

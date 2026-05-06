@@ -10,7 +10,7 @@ namespace CacheWeave.Faster;
 /// Best suited for single-node, high-frequency read/write workloads.
 /// Note: FASTER KV does not natively support TTL — expiry is enforced on read.
 /// </summary>
-public sealed class FasterCacheProvider : ICacheProvider, IDisposable
+public sealed class FasterCacheProvider : ICacheProviderInner, IDisposable
 {
     // SpanByteFunctions<Empty> implements IFunctions<SpanByte, SpanByte, SpanByte, SpanByteAndMemory, Empty>
     // so: Key=SpanByte, Value=SpanByte, Input=SpanByte, Output=SpanByteAndMemory, Context=Empty

@@ -1,4 +1,14 @@
 <Project>
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <Authors>Aghogho Bernard</Authors>
+    <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/teghoz/CacheWeave</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/teghoz/CacheWeave</PackageProjectUrl>
+    <PackageTags>cache;redis;aspnetcore;decorator;attribute</PackageTags>
+  </PropertyGroup>
+
   <ItemGroup>
     <!-- Override vulnerable transitive Newtonsoft.Json 9.0.1 pulled in by Microsoft.AspNetCore.Mvc.Core -->
     <PackageReference Update="Newtonsoft.Json" Version="13.0.3" />

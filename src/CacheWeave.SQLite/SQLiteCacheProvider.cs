@@ -8,7 +8,7 @@ namespace CacheWeave.SQLite;
 /// CacheWeave provider backed by SQLite.
 /// Suitable for edge deployments, offline-capable scenarios, and local development.
 /// </summary>
-public sealed class SQLiteCacheProvider : ICacheProvider, IDisposable
+public sealed class SQLiteCacheProvider : ICacheProviderInner, IDisposable
 {
     private readonly SqliteConnection _connection;
     private readonly SQLiteCacheOptions _options;

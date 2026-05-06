@@ -9,7 +9,7 @@ namespace CacheWeave.DynamoDB;
 /// CacheWeave provider backed by AWS DynamoDB.
 /// Requires a DynamoDB table with TTL enabled on the configured TtlAttribute.
 /// </summary>
-public sealed class DynamoDbCacheProvider : ICacheProvider
+public sealed class DynamoDbCacheProvider : ICacheProviderInner
 {
     private readonly IAmazonDynamoDB _client;
     private readonly DynamoDbCacheOptions _options;

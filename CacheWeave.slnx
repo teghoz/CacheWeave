@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/CacheWeave.Core/CacheWeave.Core.csproj" />
+    <Project Path="src/CacheWeave.DistributedCache/CacheWeave.DistributedCache.csproj" />
     <Project Path="src/CacheWeave.DynamoDB/CacheWeave.DynamoDB.csproj" />
     <Project Path="src/CacheWeave.Faster/CacheWeave.Faster.csproj" />
     <Project Path="src/CacheWeave.InMemory/CacheWeave.InMemory.csproj" />

@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Mvc.Filters;
 namespace CacheWeave.Core.Abstractions;
 
 /// <summary>
-/// Builds a deterministic cache key from an action execution context.
+/// Builds a deterministic cache key from an action execution context and attribute configuration.
 /// </summary>
 public interface ICacheKeyBuilder
 {
-    string Build(string baseKey, ActionExecutingContext context, bool includeQueryParams, bool hashBody);
+    Task<string> BuildAsync(CacheWeaveAttribute attribute, ActionExecutingContext context);
 }

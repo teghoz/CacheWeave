@@ -20,7 +20,7 @@ public static class ServiceCollectionExtensions
         else
             services.AddOptions<SQLiteCacheOptions>();
 
-        services.AddSingleton<ICacheProvider, SQLiteCacheProvider>();
+        services.AddSingleton<ICacheProviderInner, SQLiteCacheProvider>();
         return services;
     }
 }

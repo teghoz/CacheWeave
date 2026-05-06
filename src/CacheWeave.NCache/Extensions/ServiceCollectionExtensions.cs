@@ -18,7 +18,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddCacheWeave();
         services.AddSingleton<ICache>(_ => CacheManager.GetCache(cacheName));
-        services.AddSingleton<ICacheProvider, NCacheCacheProvider>();
+        services.AddSingleton<ICacheProviderInner, NCacheCacheProvider>();
         return services;
     }
 }

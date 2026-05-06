@@ -6,7 +6,7 @@ namespace CacheWeave.InMemory;
 /// <summary>
 /// CacheWeave provider backed by <see cref="IMemoryCache"/>. Suitable for single-instance deployments and testing.
 /// </summary>
-public sealed class InMemoryCacheProvider : ICacheProvider
+public sealed class InMemoryCacheProvider : ICacheProviderInner
 {
     private readonly IMemoryCache _cache;
 
