@@ -2,6 +2,12 @@
   <img src="assets/logo.png" alt="CacheWeave" width="180" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/teghoz/CacheWeave/actions/workflows/ci.yml">
+    <img src="https://github.com/teghoz/CacheWeave/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  </a>
+</p>
+
 # CacheWeave
 
 Provider-agnostic, declarative response caching for ASP.NET Core.
