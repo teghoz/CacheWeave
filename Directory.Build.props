@@ -7,7 +7,12 @@
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/teghoz/CacheWeave</PackageProjectUrl>
     <PackageTags>cache;redis;aspnetcore;decorator;attribute</PackageTags>
+    <PackageIcon>logo.png</PackageIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)assets/logo.png" Pack="true" PackagePath="logo.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Override vulnerable transitive Newtonsoft.Json 9.0.1 pulled in by Microsoft.AspNetCore.Mvc.Core -->

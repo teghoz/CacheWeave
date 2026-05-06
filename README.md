@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="CacheWeave" width="180" />
+</p>
+
 # CacheWeave
 
 Provider-agnostic, declarative response caching for ASP.NET Core.
