@@ -5,6 +5,7 @@ using CacheWeave.Core.KeyBuilders;
 using CacheWeave.Core.Providers;
 using CacheWeave.Core.Serialization;
 using CacheWeave.Core.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -101,5 +102,28 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CacheWeaveEvictFilter>();
         services.AddScoped<CacheWeavePageFilter>();
         return services;
+    }
+
+    /// <summary>
+    /// Registers CacheWeave MVC action filters globally so that
+    /// <see cref="CacheWeaveAttribute"/> and <see cref="CacheWeaveEvictAttribute"/>
+    /// are honoured without any per-controller wiring.
+    /// Call this on the <see cref="IMvcBuilder"/> returned by
+    /// <c>AddControllers()</c> / <c>AddMvc()</c> after <see cref="AddCacheWeave"/>.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// builder.Services.AddCacheWeave(options => { ... });
+    /// builder.Services.AddControllers().AddCacheWeaveFilters();
+    /// </code>
+    /// </example>
+    public static IMvcBuilder AddCacheWeaveFilters(this IMvcBuilder mvcBuilder)
+    {
+        mvcBuilder.AddMvcOptions(options =>
+        {
+            options.Filters.AddService<CacheWeaveFilter>();
+            options.Filters.AddService<CacheWeaveEvictFilter>();
+        });
+        return mvcBuilder;
     }
 }
