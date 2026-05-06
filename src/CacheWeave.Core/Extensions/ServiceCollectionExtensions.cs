@@ -7,6 +7,7 @@ using CacheWeave.Core.Serialization;
 using CacheWeave.Core.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace CacheWeave.Core.Extensions;
@@ -78,7 +79,18 @@ public static class ServiceCollectionExtensions
             if (!opts.Enabled)
                 return DisabledCacheProvider.Instance;
 
-            var inner = sp.GetRequiredService<ICacheProviderInner>();
+            var inner = sp.GetService<ICacheProviderInner>();
+            if (inner is null)
+            {
+                sp.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("CacheWeave")
+                    .LogWarning(
+                        "CacheWeave: no ICacheProviderInner registered. " +
+                        "Call AddCacheWeaveRedis(), AddCacheWeaveInMemory(), or another provider extension. " +
+                        "Falling back to no-op provider — all cache operations are disabled.");
+                return DisabledCacheProvider.Instance;
+            }
+
             if (!opts.EnableCompression) return inner;
             var compressor = sp.GetRequiredService<ICacheCompressor>();
             return new CompressingCacheProvider(inner, compressor);
