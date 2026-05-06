@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>latest</LangVersion>
+        <RootNamespace>CacheWeave.Core</RootNamespace>
+        <AssemblyName>CacheWeave.Core</AssemblyName>
+        <Description>Core abstractions and attribute filter for CacheWeave — provider-agnostic declarative API response caching for ASP.NET Core.</Description>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    </ItemGroup>
+
+</Project>

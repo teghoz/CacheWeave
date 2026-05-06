@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CacheWeave.Core/CacheWeave.Core.csproj" />
+    <Project Path="src/CacheWeave.DistributedCache/CacheWeave.DistributedCache.csproj" />
+    <Project Path="src/CacheWeave.DynamoDB/CacheWeave.DynamoDB.csproj" />
+    <Project Path="src/CacheWeave.Faster/CacheWeave.Faster.csproj" />
+    <Project Path="src/CacheWeave.InMemory/CacheWeave.InMemory.csproj" />
+    <Project Path="src/CacheWeave.Memcached/CacheWeave.Memcached.csproj" />
+    <Project Path="src/CacheWeave.NCache/CacheWeave.NCache.csproj" />
+    <Project Path="src/CacheWeave.Redis/CacheWeave.Redis.csproj" />
+    <Project Path="src/CacheWeave.SQLite/CacheWeave.SQLite.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CacheWeave.Tests/CacheWeave.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,86 @@
+name: Publish NuGet Packages
+
+on:
+  push:
+    tags:
+      - 'v*'           # triggers on v1.0.0, v1.2.3-beta, etc.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g. 1.0.1). Overrides the git tag.'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: Build, Test & Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            # Strip leading 'v' from tag name (v1.0.1 → 1.0.1)
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing version $VERSION"
+
+      - name: Restore dependencies
+        run: dotnet restore CacheWeave.slnx
+
+      - name: Build
+        run: >
+          dotnet build CacheWeave.slnx
+          --configuration Release
+          --no-restore
+          -p:Version=${{ steps.version.outputs.VERSION }}
+
+      - name: Test
+        run: >
+          dotnet test CacheWeave.slnx
+          --configuration Release
+          --no-build
+          --verbosity normal
+
+      - name: Pack all packages
+        run: |
+          PROJECTS=(
+            src/CacheWeave.Core/CacheWeave.Core.csproj
+            src/CacheWeave.Redis/CacheWeave.Redis.csproj
+            src/CacheWeave.InMemory/CacheWeave.InMemory.csproj
+            src/CacheWeave.DistributedCache/CacheWeave.DistributedCache.csproj
+            src/CacheWeave.SQLite/CacheWeave.SQLite.csproj
+            src/CacheWeave.DynamoDB/CacheWeave.DynamoDB.csproj
+            src/CacheWeave.Memcached/CacheWeave.Memcached.csproj
+            src/CacheWeave.NCache/CacheWeave.NCache.csproj
+            src/CacheWeave.Faster/CacheWeave.Faster.csproj
+          )
+          for PROJECT in "${PROJECTS[@]}"; do
+            dotnet pack "$PROJECT" \
+              --configuration Release \
+              --no-build \
+              --output ./nupkg \
+              -p:Version=${{ steps.version.outputs.VERSION }}
+          done
+
+      - name: Publish to NuGet
+        run: >
+          dotnet nuget push ./nupkg/*.nupkg
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate

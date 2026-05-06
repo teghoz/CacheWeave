@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>latest</LangVersion>
+        <RootNamespace>CacheWeave.DistributedCache</RootNamespace>
+        <AssemblyName>CacheWeave.DistributedCache</AssemblyName>
+        <Description>
+            CacheWeave provider backed by Microsoft.Extensions.Caching.IDistributedCache.
+            Allows CacheWeave to reuse an existing IDistributedCache registration (e.g.
+            AddStackExchangeRedisCache, AddDistributedMemoryCache). Prefix-based invalidation
+            requires an IConnectionMultiplexer to be registered separately.
+        </Description>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CacheWeave.Core\CacheWeave.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- StackExchange.Redis is optional — only needed for RemoveByPrefixAsync -->
+        <PackageReference Include="StackExchange.Redis" Version="2.8.24" />
+    </ItemGroup>
+
+</Project>
