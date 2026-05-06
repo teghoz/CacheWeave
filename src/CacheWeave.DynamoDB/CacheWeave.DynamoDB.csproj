@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>latest</LangVersion>
+        <RootNamespace>CacheWeave.DynamoDB</RootNamespace>
+        <AssemblyName>CacheWeave.DynamoDB</AssemblyName>
+        <Version>1.0.0</Version>
+        <Authors>Aghogho Bernard</Authors>
+        <Description>DynamoDB provider for CacheWeave using AWSSDK.DynamoDBv2.</Description>
+        <PackageTags>cache;dynamodb;aws;aspnetcore;decorator;attribute</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CacheWeave.Core\CacheWeave.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.402.8" />
+        <PackageReference Include="AWSSDK.Extensions.NETCore.Setup" Version="3.7.301" />
+        <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+    </ItemGroup>
+
+</Project>

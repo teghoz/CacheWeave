@@ -1,0 +1,6 @@
+<Project>
+  <ItemGroup>
+    <!-- Override vulnerable transitive Newtonsoft.Json 9.0.1 pulled in by Microsoft.AspNetCore.Mvc.Core -->
+    <PackageReference Update="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+</Project>

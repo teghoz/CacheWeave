@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>latest</LangVersion>
+        <RootNamespace>CacheWeave.Core</RootNamespace>
+        <AssemblyName>CacheWeave.Core</AssemblyName>
+        <Version>1.0.0</Version>
+        <Authors>Aghogho Bernard</Authors>
+        <Description>Core abstractions and attribute filter for CacheWeave — provider-agnostic declarative API response caching for ASP.NET Core.</Description>
+        <PackageTags>cache;redis;aspnetcore;decorator;attribute</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.3.0" />
+    </ItemGroup>
+
+</Project>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>latest</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <RootNamespace>CacheWeave.Faster</RootNamespace>
+        <AssemblyName>CacheWeave.Faster</AssemblyName>
+        <Version>1.0.0</Version>
+        <Authors>Aghogho Bernard</Authors>
+        <Description>Microsoft FASTER KV provider for CacheWeave. High-throughput, low-latency local cache backed by FASTER log-structured storage.</Description>
+        <PackageTags>cache;faster;microsoft;aspnetcore;decorator;attribute</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CacheWeave.Core\CacheWeave.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.FASTER.Core" Version="2.0.36" />
+        <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+    </ItemGroup>
+
+</Project>

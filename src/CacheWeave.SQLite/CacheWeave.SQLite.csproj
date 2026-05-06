@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>latest</LangVersion>
+        <RootNamespace>CacheWeave.SQLite</RootNamespace>
+        <AssemblyName>CacheWeave.SQLite</AssemblyName>
+        <Version>1.0.0</Version>
+        <Authors>Aghogho Bernard</Authors>
+        <Description>SQLite provider for CacheWeave using Microsoft.Data.Sqlite. Suitable for edge deployments and offline-capable scenarios.</Description>
+        <PackageTags>cache;sqlite;aspnetcore;decorator;attribute</PackageTags>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CacheWeave.Core\CacheWeave.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.0" />
+    </ItemGroup>
+
+</Project>
