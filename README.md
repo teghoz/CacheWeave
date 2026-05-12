@@ -33,6 +33,7 @@ public async Task<IActionResult> GetProducts([FromQuery] int page = 1)
 | **Stampede protection** | Per-key `SemaphoreSlim` by default; swap for a distributed lock in multi-instance deployments |
 | **Conditional caching** | `NoCacheWhen` flags — skip caching on errors, empty results, or both |
 | **Sliding expiry** | Emulated by re-writing the entry on every cache hit |
+| **Route parameters** | Route values (e.g. `{id}`) are automatically included in cache keys — framework keys (`controller`, `action`, `page`, `area`) are excluded |
 | **Body hashing** | SHA-256 hash of the request body (or selected fields) appended to the key for POST endpoints |
 | **Compression** | Optional GZip compression before storage — transparent to callers |
 | **Serializer choice** | System.Text.Json (default) or Newtonsoft.Json, configured globally |
@@ -89,6 +90,36 @@ public Task<IActionResult> GetAll([FromQuery] int page = 1) { ... }
 [CacheWeave]
 public Task<IActionResult> GetAll() { ... }
 
+// Route parameters — {id} is automatically included in the cache key
+// GET /products/42 → key: "products:id=42"
+[HttpGet("{id}")]
+[CacheWeave("products")]
+public Task<IActionResult> GetById(int id) { ... }
+
+// Route params + query params combined
+// GET /products/42/reviews?page=2 → key: "products:reviews:id=42:page=2"
+[HttpGet("{id}/reviews")]
+[CacheWeave("products:reviews")]
+public Task<IActionResult> GetReviews(int id, [FromQuery] int page = 1) { ... }
+
+// Exclude specific route params from the key
+[HttpGet("{id}/{version}")]
+[CacheWeave("products", ExcludeRouteParams = ["version"])]
+public Task<IActionResult> GetById(int id, string version) { ... }
+
+// Disable route params entirely
+[HttpGet("{id}")]
+[CacheWeave("products", IncludeRouteParams = false)]
+public Task<IActionResult> GetById(int id) { ... }
+
+// Minimal API with route parameters
+app.MapGet("/products/{id}", (int id) => ...)
+   .WithCacheWeave("products");
+
+// Minimal API — exclude specific route params
+app.MapGet("/products/{id}/{version}", (int id, string version) => ...)
+   .WithCacheWeave("products", excludeRouteParams: ["version"]);
+
 // Evict on mutation
 [HttpPost]
 [CacheWeaveEvict(Prefix = "products:")]
@@ -123,6 +154,8 @@ All options are set via `AddCacheWeave(options => ...)`:
 |---|---|---|---|
 | `Key` (ctor) | `string?` | `null` | Base key. Omit to derive from controller/action name |
 | `ExpirySeconds` | `int` | `-1` (global) | TTL. `0` = no expiry |
+| `IncludeRouteParams` | `bool` | `true` | Append sorted route params (path segments) to key |
+| `ExcludeRouteParams` | `string[]` | `[]` | Route params to strip from key |
 | `IncludeQueryParams` | `bool` | `true` | Append sorted query params to key |
 | `ExcludeParams` | `string[]` | `[]` | Query params to strip from key |
 | `HashBody` | `bool` | `false` | Append SHA-256 body hash to key |

@@ -12,19 +12,27 @@ namespace CacheWeave.Core.KeyBuilders;
 /// <summary>
 /// Default cache key builder. Assembles keys in the following segment order:
 ///
-///   {baseKey}{sep}{version?}{sep}{contextSegment?}{sep}{queryParams?}{sep}{bodyHash?}
+///   {baseKey}{sep}{version?}{sep}{contextSegment?}{sep}{routeParams?}{sep}{queryParams?}{sep}{bodyHash?}
 ///
-/// Example (Redis convention, version "v2", tenant scoped, GET):
-///   material-vault:material-types:v2:tenant=acme:page=1:pageSize=20:region=US
+/// Example (Redis convention, version "v2", tenant scoped, GET with route param):
+///   material-vault:material-types:v2:tenant=acme:id=42:page=1:pageSize=20:region=US
 ///
 /// Example (POST with selective body hash):
 ///   material-vault:search:v2:tenant=acme:a3f9c2d1e4b7...
 /// </summary>
-public sealed class DefaultCacheKeyBuilder : ICacheKeyBuilder
+    public sealed class DefaultCacheKeyBuilder : ICacheKeyBuilder
 {
     private readonly CacheWeaveOptions _options;
     private readonly IKeyContextProvider? _contextProvider;
     private readonly ICacheSerializer _serializer;
+
+    /// <summary>
+    /// Framework-owned route values that are never meaningful for cache key differentiation.
+    /// </summary>
+    private static readonly HashSet<string> FrameworkRouteKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "controller", "action", "page", "area"
+    };
 
     // Always use minified JSON for hashing regardless of the configured serializer
     private static readonly JsonSerializerOptions _minifiedOptions = new()
@@ -60,7 +68,30 @@ public sealed class DefaultCacheKeyBuilder : ICacheKeyBuilder
                 segments.Add(contextSegment);
         }
 
-        // 3. Query param segments
+        // 3. Route param segments
+        if (attribute.IncludeRouteParams)
+        {
+            var routeValues = context.HttpContext.Request.RouteValues;
+            if (routeValues.Count > 0)
+            {
+                var excludedRoute = attribute.ExcludeRouteParams.Length > 0
+                    ? new HashSet<string>(attribute.ExcludeRouteParams, StringComparer.OrdinalIgnoreCase)
+                    : null;
+
+                var routeSegments = routeValues
+                    .Where(kv => !FrameworkRouteKeys.Contains(kv.Key)
+                                 && (excludedRoute is null || !excludedRoute.Contains(kv.Key))
+                                 && kv.Value is not null)
+                    .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(kv => $"{kv.Key}={kv.Value}")
+                    .ToList();
+
+                if (routeSegments.Count > 0)
+                    segments.Add(string.Join(sep, routeSegments));
+            }
+        }
+
+        // 4. Query param segments
         if (attribute.IncludeQueryParams)
         {
             var query = context.HttpContext.Request.Query;
@@ -81,7 +112,7 @@ public sealed class DefaultCacheKeyBuilder : ICacheKeyBuilder
             }
         }
 
-        // 4. Body hash segment
+        // 5. Body hash segment
         if (attribute.HashBody && context.ActionArguments.Count > 0)
         {
             var bodyArg = context.ActionArguments.Values.FirstOrDefault(v => v is not null);
@@ -94,7 +125,7 @@ public sealed class DefaultCacheKeyBuilder : ICacheKeyBuilder
 
         var key = string.Join(sep, segments);
 
-        // 5. Global key prefix — prepended last so it wraps the entire assembled key
+        // 6. Global key prefix — prepended last so it wraps the entire assembled key
         if (!string.IsNullOrWhiteSpace(_options.GlobalKeyPrefix))
             key = $"{_options.GlobalKeyPrefix}{sep}{key}";
 
