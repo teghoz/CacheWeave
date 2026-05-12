@@ -28,6 +28,14 @@ public sealed class CacheWeavePageFilter : IAsyncPageFilter
     private readonly CacheWeaveOptions _options;
     private readonly ILogger<CacheWeavePageFilter> _logger;
 
+    /// <summary>
+    /// Framework-owned route values that are never meaningful for cache key differentiation.
+    /// </summary>
+    private static readonly HashSet<string> FrameworkRouteKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "controller", "action", "page", "area"
+    };
+
     public CacheWeavePageFilter(
         ICacheProvider cacheProvider,
         ICacheSerializer serializer,
@@ -63,6 +71,28 @@ public sealed class CacheWeavePageFilter : IAsyncPageFilter
 
         if (!string.IsNullOrWhiteSpace(_options.KeyVersion))
             segments.Add(_options.KeyVersion);
+
+        if (attribute.IncludeRouteParams)
+        {
+            var routeValues = context.HttpContext.Request.RouteValues;
+            if (routeValues.Count > 0)
+            {
+                var excludedRoute = attribute.ExcludeRouteParams.Length > 0
+                    ? new HashSet<string>(attribute.ExcludeRouteParams, StringComparer.OrdinalIgnoreCase)
+                    : null;
+
+                var routeSegments = routeValues
+                    .Where(kv => !FrameworkRouteKeys.Contains(kv.Key)
+                                 && (excludedRoute is null || !excludedRoute.Contains(kv.Key))
+                                 && kv.Value is not null)
+                    .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(kv => $"{kv.Key}={kv.Value}")
+                    .ToList();
+
+                if (routeSegments.Count > 0)
+                    segments.Add(string.Join(sep, routeSegments));
+            }
+        }
 
         if (attribute.IncludeQueryParams)
         {
