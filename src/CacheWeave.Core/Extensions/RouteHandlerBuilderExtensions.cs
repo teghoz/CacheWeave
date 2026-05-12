@@ -19,6 +19,8 @@ public static class RouteHandlerBuilderExtensions
     /// <param name="builder">The route handler builder.</param>
     /// <param name="key">The base cache key.</param>
     /// <param name="expirySeconds">TTL in seconds. -1 uses the global default.</param>
+    /// <param name="includeRouteParams">Whether to append route params (path segments) to the key.</param>
+    /// <param name="excludeRouteParams">Route param names to exclude from the key.</param>
     /// <param name="includeQueryParams">Whether to append query params to the key.</param>
     /// <param name="excludeParams">Query param names to exclude from the key.</param>
     /// <param name="hashBody">Whether to hash the request body (for POST endpoints).</param>
@@ -29,6 +31,8 @@ public static class RouteHandlerBuilderExtensions
         this RouteHandlerBuilder builder,
         string key,
         int expirySeconds = -1,
+        bool includeRouteParams = true,
+        string[]? excludeRouteParams = null,
         bool includeQueryParams = true,
         string[]? excludeParams = null,
         bool hashBody = false,
@@ -39,6 +43,8 @@ public static class RouteHandlerBuilderExtensions
         var attribute = new CacheWeaveAttribute(key)
         {
             ExpirySeconds = expirySeconds,
+            IncludeRouteParams = includeRouteParams,
+            ExcludeRouteParams = excludeRouteParams ?? [],
             IncludeQueryParams = includeQueryParams,
             ExcludeParams = excludeParams ?? [],
             HashBody = hashBody,

@@ -25,6 +25,24 @@ public sealed class CacheWeaveAttribute : Attribute
     public string? Key { get; }
 
     /// <summary>
+    /// When true, route parameters (path segments such as <c>{id}</c>) are appended to the
+    /// cache key in sorted order. Built-in framework route values (<c>controller</c>,
+    /// <c>action</c>, <c>page</c>, <c>area</c>) are always excluded automatically.
+    /// Parameters listed in <see cref="ExcludeRouteParams"/> are also excluded.
+    /// Default: <c>true</c>.
+    /// </summary>
+    public bool IncludeRouteParams { get; set; } = true;
+
+    /// <summary>
+    /// Route parameter names to exclude from the cache key.
+    /// Useful for stripping route values that do not affect the response.
+    /// When empty, all route params are included (subject to <see cref="IncludeRouteParams"/>).
+    /// Framework route values (<c>controller</c>, <c>action</c>, <c>page</c>, <c>area</c>)
+    /// are always excluded regardless of this setting.
+    /// </summary>
+    public string[] ExcludeRouteParams { get; set; } = [];
+
+    /// <summary>
     /// When true, query string parameters are appended to the cache key in sorted order.
     /// Parameters listed in <see cref="ExcludeParams"/> are excluded.
     /// Default: <c>true</c>.
