@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Version>1.0.3</Version>
+    <Version>1.0.4</Version>
     <Authors>Aghogho Bernard</Authors>
     <PackageLicenseExpression>GPL-3.0-only</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/teghoz/CacheWeave</RepositoryUrl>

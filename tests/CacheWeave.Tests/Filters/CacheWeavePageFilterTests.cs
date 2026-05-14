@@ -363,4 +363,73 @@ public class CacheWeavePageFilterTests
 
         _provider.Verify(p => p.SetAsync("page-key", It.IsAny<string>(), null, default), Times.Once);
     }
+
+    // -------------------------------------------------------------------------
+    // Fault tolerance — cache read failure
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task OnPageHandlerExecutionAsync_FallsThroughToHandler_WhenGetAsyncThrows()
+    {
+        _provider.Setup(p => p.GetAsync("page-key", default))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var sut = MakeSut();
+        var method = typeof(FakePage).GetMethod(nameof(FakePage.OnGet))!;
+        var ctx = MakeExecutingContext(method);
+        var nextCalled = false;
+        PageHandlerExecutionDelegate wrappedNext = () =>
+        {
+            nextCalled = true;
+            return MakeNext(new OkObjectResult(new { id = 1 }))();
+        };
+
+        await sut.OnPageHandlerExecutionAsync(ctx, wrappedNext);
+
+        nextCalled.Should().BeTrue();
+    }
+
+    // -------------------------------------------------------------------------
+    // Fault tolerance — cache write failure
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task OnPageHandlerExecutionAsync_StillReturnsResponse_WhenSetAsyncThrows()
+    {
+        _provider.Setup(p => p.GetAsync("page-key", default)).ReturnsAsync((string?)null);
+        _provider.Setup(p => p.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>(), default))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var sut = MakeSut();
+        var method = typeof(FakePage).GetMethod(nameof(FakePage.OnGet))!;
+        var ctx = MakeExecutingContext(method);
+
+        // Should not throw — the handler result is still returned
+        var act = () => sut.OnPageHandlerExecutionAsync(ctx, MakeNext(new OkObjectResult(new { id = 1 })));
+
+        await act.Should().NotThrowAsync();
+    }
+
+    // -------------------------------------------------------------------------
+    // Fault tolerance — sliding expiry refresh failure
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task OnPageHandlerExecutionAsync_StillServesCachedResponse_WhenSlidingExpiryRefreshThrows()
+    {
+        var cached = _serializer.Serialize(new { id = 1 });
+        _provider.Setup(p => p.GetAsync("page-key", default)).ReturnsAsync(cached);
+        _provider.Setup(p => p.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>(), default))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var sut = MakeSut();
+        var method = typeof(FakePage).GetMethod(nameof(FakePage.OnGetSliding))!;
+        var ctx = MakeExecutingContext(method);
+
+        await sut.OnPageHandlerExecutionAsync(ctx, MakeNext());
+
+        // Cached response should still be served despite sliding expiry refresh failure
+        ctx.Result.Should().BeOfType<ContentResult>()
+            .Which.StatusCode.Should().Be(200);
+    }
 }

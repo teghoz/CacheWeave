@@ -118,7 +118,17 @@ public sealed class CacheWeavePageFilter : IAsyncPageFilter
 
         _logger.LogDebug("CacheWeave (Page): resolving key '{Key}'", cacheKey);
 
-        var cached = await _cacheProvider.GetAsync(cacheKey);
+        string? cached = null;
+        try
+        {
+            cached = await _cacheProvider.GetAsync(cacheKey);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "CacheWeave (Page): cache read failed for '{Key}' — falling through to handler", cacheKey);
+        }
+
         if (cached is not null)
         {
             _logger.LogDebug("CacheWeave (Page): cache hit for '{Key}'", cacheKey);
@@ -127,7 +137,17 @@ public sealed class CacheWeavePageFilter : IAsyncPageFilter
             {
                 var expiry = ResolveExpiry(attribute);
                 if (expiry.HasValue)
-                    await _cacheProvider.SetAsync(cacheKey, cached, expiry);
+                {
+                    try
+                    {
+                        await _cacheProvider.SetAsync(cacheKey, cached, expiry);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "CacheWeave (Page): sliding expiry refresh failed for '{Key}' — serving cached response anyway", cacheKey);
+                    }
+                }
             }
 
             context.Result = new ContentResult
@@ -156,8 +176,16 @@ public sealed class CacheWeavePageFilter : IAsyncPageFilter
 
         var resolvedExpiry = ResolveExpiry(attribute);
         var serialized = _serializer.Serialize(value, value.GetType());
-        await _cacheProvider.SetAsync(cacheKey, serialized, resolvedExpiry);
-        _logger.LogDebug("CacheWeave (Page): cached response for '{Key}' (TTL: {Expiry})", cacheKey, resolvedExpiry);
+        try
+        {
+            await _cacheProvider.SetAsync(cacheKey, serialized, resolvedExpiry);
+            _logger.LogDebug("CacheWeave (Page): cached response for '{Key}' (TTL: {Expiry})", cacheKey, resolvedExpiry);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "CacheWeave (Page): cache write failed for '{Key}' — response will not be cached", cacheKey);
+        }
     }
 
     private static bool ShouldCache(CacheWeaveAttribute attribute, object value, int statusCode)

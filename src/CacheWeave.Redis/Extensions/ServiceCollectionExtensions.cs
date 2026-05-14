@@ -17,8 +17,12 @@ public static class ServiceCollectionExtensions
         string redisConnectionString)
     {
         services.AddCacheWeave();
-        services.AddSingleton<IConnectionMultiplexer>(
-            _ => ConnectionMultiplexer.Connect(redisConnectionString));
+        services.AddSingleton<IConnectionMultiplexer>(_ =>
+        {
+            var options = ConfigurationOptions.Parse(redisConnectionString);
+            options.AbortOnConnectFail = false;
+            return ConnectionMultiplexer.Connect(options);
+        });
         services.AddSingleton<ICacheProviderInner, RedisCacheProvider>();
         return services;
     }
