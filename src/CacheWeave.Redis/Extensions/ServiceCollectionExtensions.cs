@@ -17,6 +17,10 @@ public static class ServiceCollectionExtensions
         string redisConnectionString)
     {
         services.AddCacheWeave();
+
+        if (string.IsNullOrWhiteSpace(redisConnectionString))
+            return services;
+
         services.AddSingleton<IConnectionMultiplexer>(_ =>
         {
             var options = ConfigurationOptions.Parse(redisConnectionString);
