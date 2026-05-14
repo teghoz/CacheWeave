@@ -63,7 +63,17 @@ public sealed class CacheWeaveEndpointFilter : IEndpointFilter
         var cacheKey = BuildKey(context.HttpContext);
         _logger.LogDebug("CacheWeave (Endpoint): resolving key '{Key}'", cacheKey);
 
-        var cached = await _cacheProvider.GetAsync(cacheKey, context.HttpContext.RequestAborted);
+        string? cached = null;
+        try
+        {
+            cached = await _cacheProvider.GetAsync(cacheKey, context.HttpContext.RequestAborted);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "CacheWeave (Endpoint): cache read failed for '{Key}' — falling through to handler", cacheKey);
+        }
+
         if (cached is not null)
         {
             _logger.LogDebug("CacheWeave (Endpoint): cache hit for '{Key}'", cacheKey);
@@ -72,7 +82,17 @@ public sealed class CacheWeaveEndpointFilter : IEndpointFilter
             {
                 var expiry = ResolveExpiry();
                 if (expiry.HasValue)
-                    await _cacheProvider.SetAsync(cacheKey, cached, expiry, context.HttpContext.RequestAborted);
+                {
+                    try
+                    {
+                        await _cacheProvider.SetAsync(cacheKey, cached, expiry, context.HttpContext.RequestAborted);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex,
+                            "CacheWeave (Endpoint): sliding expiry refresh failed for '{Key}' — serving cached response anyway", cacheKey);
+                    }
+                }
             }
 
             return Results.Text(cached, "application/json");
@@ -84,8 +104,16 @@ public sealed class CacheWeaveEndpointFilter : IEndpointFilter
         {
             var serialized = _serializer.Serialize(result, result.GetType());
             var resolvedExpiry = ResolveExpiry();
-            await _cacheProvider.SetAsync(cacheKey, serialized, resolvedExpiry, context.HttpContext.RequestAborted);
-            _logger.LogDebug("CacheWeave (Endpoint): cached response for '{Key}' (TTL: {Expiry})", cacheKey, resolvedExpiry);
+            try
+            {
+                await _cacheProvider.SetAsync(cacheKey, serialized, resolvedExpiry, context.HttpContext.RequestAborted);
+                _logger.LogDebug("CacheWeave (Endpoint): cached response for '{Key}' (TTL: {Expiry})", cacheKey, resolvedExpiry);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex,
+                    "CacheWeave (Endpoint): cache write failed for '{Key}' — response will not be cached", cacheKey);
+            }
         }
 
         return result;

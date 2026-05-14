@@ -227,4 +227,64 @@ public class CacheWeaveEndpointFilterTests
 
         _provider.Verify(p => p.SetAsync("ep-key", It.IsAny<string>(), TimeSpan.FromSeconds(120), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    // -------------------------------------------------------------------------
+    // Fault tolerance — cache read failure
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task InvokeAsync_FallsThroughToHandler_WhenGetAsyncThrows()
+    {
+        _provider.Setup(p => p.GetAsync("ep-key", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var sut = MakeSut();
+        var ctx = MakeContext();
+        var handlerResult = new { id = 1 };
+
+        var result = await sut.InvokeAsync(ctx, _ => ValueTask.FromResult<object?>(handlerResult));
+
+        result.Should().Be(handlerResult);
+    }
+
+    // -------------------------------------------------------------------------
+    // Fault tolerance — cache write failure
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task InvokeAsync_StillReturnsResponse_WhenSetAsyncThrows()
+    {
+        _provider.Setup(p => p.GetAsync("ep-key", It.IsAny<CancellationToken>())).ReturnsAsync((string?)null);
+        _provider.Setup(p => p.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var sut = MakeSut();
+        var ctx = MakeContext();
+        var handlerResult = new { id = 1 };
+
+        var result = await sut.InvokeAsync(ctx, _ => ValueTask.FromResult<object?>(handlerResult));
+
+        result.Should().Be(handlerResult);
+    }
+
+    // -------------------------------------------------------------------------
+    // Fault tolerance — sliding expiry refresh failure
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public async Task InvokeAsync_StillServesCachedResponse_WhenSlidingExpiryRefreshThrows()
+    {
+        var cached = _serializer.Serialize(new { id = 1 });
+        _provider.Setup(p => p.GetAsync("ep-key", It.IsAny<CancellationToken>())).ReturnsAsync(cached);
+        _provider.Setup(p => p.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Redis down"));
+
+        var attr = new CacheWeaveAttribute("ep-key") { SlidingExpiry = true, ExpirySeconds = 30 };
+        var sut = MakeSut(attr);
+        var ctx = MakeContext();
+
+        var result = await sut.InvokeAsync(ctx, _ => ValueTask.FromResult<object?>(null));
+
+        result.Should().NotBeNull();
+    }
 }
