@@ -7,8 +7,14 @@
         <LangVersion>latest</LangVersion>
         <RootNamespace>CacheWeave.DynamoDB</RootNamespace>
         <AssemblyName>CacheWeave.DynamoDB</AssemblyName>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <Description>DynamoDB provider for CacheWeave using AWSSDK.DynamoDBv2.</Description>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../../README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\CacheWeave.Core\CacheWeave.Core.csproj" />

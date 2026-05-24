@@ -7,8 +7,14 @@
         <LangVersion>latest</LangVersion>
         <RootNamespace>CacheWeave.Core</RootNamespace>
         <AssemblyName>CacheWeave.Core</AssemblyName>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <Description>Core abstractions and attribute filter for CacheWeave — provider-agnostic declarative API response caching for ASP.NET Core.</Description>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../../README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
 
     <ItemGroup>
         <FrameworkReference Include="Microsoft.AspNetCore.App" />

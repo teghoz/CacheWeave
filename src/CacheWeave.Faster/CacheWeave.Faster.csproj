@@ -8,8 +8,14 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <RootNamespace>CacheWeave.Faster</RootNamespace>
         <AssemblyName>CacheWeave.Faster</AssemblyName>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <Description>Microsoft FASTER KV provider for CacheWeave. High-throughput, low-latency local cache backed by FASTER log-structured storage.</Description>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../../README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\CacheWeave.Core\CacheWeave.Core.csproj" />
