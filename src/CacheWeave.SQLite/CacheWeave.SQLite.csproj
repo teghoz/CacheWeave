@@ -7,8 +7,14 @@
         <LangVersion>latest</LangVersion>
         <RootNamespace>CacheWeave.SQLite</RootNamespace>
         <AssemblyName>CacheWeave.SQLite</AssemblyName>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <Description>SQLite provider for CacheWeave using Microsoft.Data.Sqlite. Suitable for edge deployments and offline-capable scenarios.</Description>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../../README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\CacheWeave.Core\CacheWeave.Core.csproj" />

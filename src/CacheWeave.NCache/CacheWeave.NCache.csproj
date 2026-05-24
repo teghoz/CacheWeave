@@ -7,8 +7,14 @@
         <LangVersion>latest</LangVersion>
         <RootNamespace>CacheWeave.NCache</RootNamespace>
         <AssemblyName>CacheWeave.NCache</AssemblyName>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <Description>NCache provider for CacheWeave using Alachisoft.NCache.SDK.</Description>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../../README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\CacheWeave.Core\CacheWeave.Core.csproj" />
