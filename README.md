@@ -1,12 +1,6 @@
-<p align="center">
-  <img src="assets/logo.png" alt="CacheWeave" width="180" />
-</p>
+![CacheWeave](https://raw.githubusercontent.com/teghoz/CacheWeave/main/assets/logo-sm.png)
 
-<p align="center">
-  <a href="https://github.com/teghoz/CacheWeave/actions/workflows/ci.yml">
-    <img src="https://github.com/teghoz/CacheWeave/actions/workflows/ci.yml/badge.svg" alt="CI" />
-  </a>
-</p>
+[![CI](https://github.com/teghoz/CacheWeave/actions/workflows/ci.yml/badge.svg)](https://github.com/teghoz/CacheWeave/actions/workflows/ci.yml)
 
 # CacheWeave
 
