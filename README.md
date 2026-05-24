@@ -1,4 +1,4 @@
-![CacheWeave](https://raw.githubusercontent.com/teghoz/CacheWeave/main/assets/logo.png)
+![CacheWeave](https://raw.githubusercontent.com/teghoz/CacheWeave/main/assets/logo-sm.png)
 
 [![CI](https://github.com/teghoz/CacheWeave/actions/workflows/ci.yml/badge.svg)](https://github.com/teghoz/CacheWeave/actions/workflows/ci.yml)
 
