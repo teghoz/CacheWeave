@@ -7,8 +7,14 @@
         <LangVersion>latest</LangVersion>
         <RootNamespace>CacheWeave.InMemory</RootNamespace>
         <AssemblyName>CacheWeave.InMemory</AssemblyName>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
         <Description>In-memory provider for CacheWeave using Microsoft.Extensions.Caching.Memory.</Description>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../../README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\CacheWeave.Core\CacheWeave.Core.csproj" />
