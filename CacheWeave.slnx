@@ -12,6 +12,7 @@
     <Project Path="src/CacheWeave.SQLite/CacheWeave.SQLite.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj" />
     <Project Path="tests/CacheWeave.Tests/CacheWeave.Tests.csproj" />
   </Folder>
 </Solution>

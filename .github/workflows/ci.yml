@@ -11,8 +11,9 @@ on:
       - '**'
 
 jobs:
+  # ── Modern .NET (net8 / net9 / net10) ────────────────────────────────────────
   test:
-    name: Build & Test
+    name: Build & Test (modern .NET)
     runs-on: ubuntu-latest
 
     steps:
@@ -34,4 +35,50 @@ jobs:
         run: dotnet build CacheWeave.slnx --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test CacheWeave.slnx --configuration Release --no-build --verbosity normal
+        run: >
+          dotnet test CacheWeave.slnx
+          --configuration Release
+          --no-build
+          --verbosity normal
+          --filter "FullyQualifiedName!~CacheWeave.Legacy.Tests"
+
+  # ── .NET Framework 4.8 (CacheWeave.Legacy) ───────────────────────────────────
+  test-net48:
+    name: Build & Test (net48 / CacheWeave.Legacy)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Restore dependencies
+        run: dotnet restore src/CacheWeave.Legacy/CacheWeave.Legacy.csproj
+        shell: pwsh
+
+      - name: Restore test dependencies
+        run: dotnet restore tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj
+        shell: pwsh
+
+      - name: Build CacheWeave.Legacy
+        run: dotnet build src/CacheWeave.Legacy/CacheWeave.Legacy.csproj --configuration Release --no-restore
+        shell: pwsh
+
+      - name: Build CacheWeave.Legacy.Tests
+        run: dotnet build tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj --configuration Release --no-restore
+        shell: pwsh
+
+      - name: Test (net48)
+        run: >
+          dotnet test tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj
+          --configuration Release
+          --no-build
+          --verbosity normal
+        shell: pwsh
