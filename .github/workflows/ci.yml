@@ -11,8 +11,9 @@ on:
       - '**'
 
 jobs:
+  # ── Modern .NET (net8 / net9 / net10) ────────────────────────────────────────
   test:
-    name: Build & Test
+    name: Build & Test (modern .NET)
     runs-on: ubuntu-latest
 
     steps:
@@ -28,10 +29,68 @@ jobs:
             10.x
 
       - name: Restore dependencies
-        run: dotnet restore CacheWeave.slnx
+        run: dotnet restore CacheWeave.slnx --ignore-failed-sources
 
-      - name: Build
-        run: dotnet build CacheWeave.slnx --configuration Release --no-restore
+      - name: Build (modern .NET projects only)
+        run: |
+          for proj in \
+            src/CacheWeave.Core/CacheWeave.Core.csproj \
+            src/CacheWeave.Redis/CacheWeave.Redis.csproj \
+            src/CacheWeave.InMemory/CacheWeave.InMemory.csproj \
+            src/CacheWeave.DistributedCache/CacheWeave.DistributedCache.csproj \
+            src/CacheWeave.SQLite/CacheWeave.SQLite.csproj \
+            src/CacheWeave.DynamoDB/CacheWeave.DynamoDB.csproj \
+            src/CacheWeave.Memcached/CacheWeave.Memcached.csproj \
+            src/CacheWeave.NCache/CacheWeave.NCache.csproj \
+            src/CacheWeave.Faster/CacheWeave.Faster.csproj \
+            tests/CacheWeave.Tests/CacheWeave.Tests.csproj; do
+            dotnet build "$proj" --configuration Release --no-restore
+          done
 
       - name: Test
-        run: dotnet test CacheWeave.slnx --configuration Release --no-build --verbosity normal
+        run: >
+          dotnet test tests/CacheWeave.Tests/CacheWeave.Tests.csproj
+          --configuration Release
+          --no-build
+          --verbosity normal
+
+  # ── .NET Framework 4.8 (CacheWeave.Legacy) ───────────────────────────────────
+  test-net48:
+    name: Build & Test (net48 / CacheWeave.Legacy)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.x
+            9.x
+            10.x
+
+      - name: Restore dependencies
+        shell: pwsh
+        run: dotnet restore src/CacheWeave.Legacy/CacheWeave.Legacy.csproj
+
+      - name: Restore test dependencies
+        shell: pwsh
+        run: dotnet restore tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj
+
+      - name: Build CacheWeave.Legacy
+        shell: pwsh
+        run: dotnet build src/CacheWeave.Legacy/CacheWeave.Legacy.csproj --configuration Release --no-restore
+
+      - name: Build CacheWeave.Legacy.Tests
+        shell: pwsh
+        run: dotnet build tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj --configuration Release --no-restore
+
+      - name: Test (net48)
+        shell: pwsh
+        run: >
+          dotnet test tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj
+          --configuration Release
+          --no-build
+          --verbosity normal

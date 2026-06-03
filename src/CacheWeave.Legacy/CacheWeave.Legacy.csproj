@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net48</TargetFramework>
+        <LangVersion>8.0</LangVersion>
+        <Nullable>enable</Nullable>
+        <RootNamespace>CacheWeave.Legacy</RootNamespace>
+        <AssemblyName>CacheWeave.Legacy</AssemblyName>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Description>CacheWeave provider-agnostic caching for .NET Framework 4.8. Includes Redis, InMemory, DynamoDB, SQLite, and NCache providers without ASP.NET Core dependencies.</Description>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="../../README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Core DI and options abstractions compatible with net48 -->
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+        <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.2" />
+        <!-- Serialization -->
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+        <PackageReference Include="System.Text.Json" Version="8.0.5" />
+        <!-- Redis -->
+        <PackageReference Include="StackExchange.Redis" Version="2.8.24" />
+        <!-- InMemory — System.Runtime.Caching ships in-box with net48, but needs explicit reference -->
+        <Reference Include="System.Runtime.Caching" />
+        <!-- DynamoDB -->
+        <PackageReference Include="AWSSDK.DynamoDBv2" Version="3.7.402.8" />
+        <!-- SQLite — System.Data.SQLite supports net48 -->
+        <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
+        <!-- NCache -->
+        <PackageReference Include="Alachisoft.NCache.SDK" Version="5.3.2" />
+    </ItemGroup>
+
+</Project>
