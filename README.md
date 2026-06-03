@@ -37,6 +37,7 @@ public async Task<IActionResult> GetProducts([FromQuery] int page = 1)
 | **Fault-tolerant** | All cache I/O wrapped in try/catch — Redis outage degrades to cache-miss behaviour, never a 500 |
 | **7 providers** | Redis, InMemory, SQLite, NCache, DynamoDB, Memcached, FASTER KV |
 | **Multi-target** | `net8.0`, `net9.0`, `net10.0` |
+| **.NET Framework 4.8** | `CacheWeave.Legacy` — programmatic caching for net48 without ASP.NET Core |
 
 ---
 
@@ -171,15 +172,76 @@ Multiple `[CacheWeaveEvict]` attributes are allowed on a single action.
 
 ## Providers
 
-| Package | Backing store | `RemoveByPrefix` |
+| Package | Backing store | `RemoveByPrefix` | Target frameworks |
+|---|---|---|---|
+| `CacheWeave.Redis` | StackExchange.Redis | Yes (SCAN + DEL) | net8/9/10 |
+| `CacheWeave.InMemory` | `IMemoryCache` | Yes (prefix scan) | net8/9/10 |
+| `CacheWeave.SQLite` | Microsoft.Data.Sqlite | Yes (SQL LIKE) | net8/9/10 |
+| `CacheWeave.NCache` | Alachisoft NCache | No | net8/9/10 |
+| `CacheWeave.DynamoDB` | AWS DynamoDB | No | net8/9/10 |
+| `CacheWeave.Memcached` | EnyimMemcachedCore | No | net8/9/10 |
+| `CacheWeave.Faster` | Microsoft FASTER KV | No | net8/9/10 |
+| `CacheWeave.Legacy` | Redis, InMemory, SQLite, DynamoDB, NCache | Depends on provider | **net48** |
+
+---
+
+## .NET Framework 4.8 Support (`CacheWeave.Legacy`)
+
+`CacheWeave.Legacy` brings provider-agnostic caching to .NET Framework 4.8 applications that cannot migrate to modern .NET. It exposes the same `ICacheWeaveService` programmatic API but **does not include ASP.NET Core filters** — there is no attribute-based caching on net48.
+
+### Install
+
+```bash
+dotnet add package CacheWeave.Legacy
+```
+
+### Register
+
+```csharp
+// Works with any DI container that supports Microsoft.Extensions.DependencyInjection
+services
+    .AddCacheWeave(options =>
+    {
+        options.GlobalKeyPrefix = "my-app";
+        options.DefaultExpiry   = TimeSpan.FromMinutes(5);
+        options.Serializer      = CacheWeaveSerializerType.SystemTextJson;
+    })
+    .AddCacheWeaveRedis("localhost:6379");
+    // or: .AddCacheWeaveInMemory()
+    // or: .AddCacheWeaveSQLite(o => o.DatabasePath = "cache.db")
+    // or: .AddCacheWeaveDynamoDb(dynamoClient)
+    // or: .AddCacheWeaveNCache("my-cache")
+```
+
+### Use
+
+```csharp
+public class ProductService
+{
+    private readonly ICacheWeaveService _cache;
+
+    public ProductService(ICacheWeaveService cache) => _cache = cache;
+
+    public Task<Product> GetAsync(int id) =>
+        _cache.GetOrSetAsync(
+            $"products:{id}",
+            ct => _repo.FindAsync(id, ct),
+            expiry: TimeSpan.FromMinutes(10));
+
+    public Task InvalidateAsync(int id) =>
+        _cache.InvalidateAsync($"products:{id}");
+}
+```
+
+### Provider capability on net48
+
+| Provider | `RemoveByPrefix` | Notes |
 |---|---|---|
-| `CacheWeave.Redis` | StackExchange.Redis | Yes (SCAN + DEL) |
-| `CacheWeave.InMemory` | `IMemoryCache` | Yes (prefix scan) |
-| `CacheWeave.SQLite` | Microsoft.Data.Sqlite | Yes (SQL LIKE) |
-| `CacheWeave.NCache` | Alachisoft NCache | No |
-| `CacheWeave.DynamoDB` | AWS DynamoDB | No |
-| `CacheWeave.Memcached` | EnyimMemcachedCore | No |
-| `CacheWeave.Faster` | Microsoft FASTER KV | No |
+| Redis | Yes (SCAN + DEL) | |
+| InMemory | No | Uses `System.Runtime.Caching.MemoryCache` (in-box on net48) |
+| SQLite | Yes (SQL LIKE) | Uses `System.Data.SQLite.Core` |
+| DynamoDB | No | Client-side TTL enforcement included |
+| NCache | No | |
 
 ---
 

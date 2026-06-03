@@ -18,7 +18,8 @@ on:
 jobs:
   publish:
     name: Build, Test & Publish
-    runs-on: ubuntu-latest
+    # Windows is required to build and test the net48 CacheWeave.Legacy project
+    runs-on: windows-latest
 
     permissions:
       contents: write   # required to create GitHub Releases
@@ -39,20 +40,20 @@ jobs:
 
       - name: Resolve version and release notes
         id: meta
+        shell: pwsh
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
-            NOTES="${{ inputs.release_notes }}"
-          else
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ inputs.version }}"
+            $notes   = "${{ inputs.release_notes }}"
+          } else {
             # Strip leading 'v' from tag name (v1.0.1 → 1.0.1)
-            VERSION="${GITHUB_REF_NAME#v}"
-            # Read the body of the annotated tag (everything after the first blank line)
-            NOTES="$(git tag -l --format='%(contents)' "${GITHUB_REF_NAME}")"
-          fi
-          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
-          # Write notes to a file to avoid shell quoting issues with multiline text
-          printf '%s' "$NOTES" > /tmp/release_notes.md
-          echo "Publishing version $VERSION"
+            $version = "$env:GITHUB_REF_NAME" -replace '^v', ''
+            # Read the body of the annotated tag
+            $notes = git tag -l --format='%(contents)' "$env:GITHUB_REF_NAME"
+          }
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $notes | Out-File -FilePath "$env:TEMP\release_notes.md" -Encoding utf8
+          Write-Host "Publishing version $version"
 
       - name: Restore dependencies
         run: dotnet restore CacheWeave.slnx
@@ -64,35 +65,45 @@ jobs:
           --no-restore
           -p:Version=${{ steps.meta.outputs.VERSION }}
 
-      - name: Test
+      - name: Test (modern .NET — ubuntu-compatible projects)
         run: >
           dotnet test CacheWeave.slnx
           --configuration Release
           --no-build
           --verbosity normal
+          --filter "FullyQualifiedName!~CacheWeave.Legacy.Tests"
+
+      - name: Test (net48 — CacheWeave.Legacy.Tests)
+        run: >
+          dotnet test tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj
+          --configuration Release
+          --no-build
+          --verbosity normal
 
       - name: Pack all packages
+        shell: pwsh
         run: |
-          NOTES="$(cat /tmp/release_notes.md)"
-          PROJECTS=(
-            src/CacheWeave.Core/CacheWeave.Core.csproj
-            src/CacheWeave.Redis/CacheWeave.Redis.csproj
-            src/CacheWeave.InMemory/CacheWeave.InMemory.csproj
-            src/CacheWeave.DistributedCache/CacheWeave.DistributedCache.csproj
-            src/CacheWeave.SQLite/CacheWeave.SQLite.csproj
-            src/CacheWeave.DynamoDB/CacheWeave.DynamoDB.csproj
-            src/CacheWeave.Memcached/CacheWeave.Memcached.csproj
-            src/CacheWeave.NCache/CacheWeave.NCache.csproj
-            src/CacheWeave.Faster/CacheWeave.Faster.csproj
+          $notes = Get-Content "$env:TEMP\release_notes.md" -Raw
+          $projects = @(
+            "src/CacheWeave.Core/CacheWeave.Core.csproj"
+            "src/CacheWeave.Redis/CacheWeave.Redis.csproj"
+            "src/CacheWeave.InMemory/CacheWeave.InMemory.csproj"
+            "src/CacheWeave.DistributedCache/CacheWeave.DistributedCache.csproj"
+            "src/CacheWeave.SQLite/CacheWeave.SQLite.csproj"
+            "src/CacheWeave.DynamoDB/CacheWeave.DynamoDB.csproj"
+            "src/CacheWeave.Memcached/CacheWeave.Memcached.csproj"
+            "src/CacheWeave.NCache/CacheWeave.NCache.csproj"
+            "src/CacheWeave.Faster/CacheWeave.Faster.csproj"
+            "src/CacheWeave.Legacy/CacheWeave.Legacy.csproj"
           )
-          for PROJECT in "${PROJECTS[@]}"; do
-            dotnet pack "$PROJECT" \
-              --configuration Release \
-              --no-build \
-              --output ./nupkg \
-              -p:Version=${{ steps.meta.outputs.VERSION }} \
-              -p:PackageReleaseNotes="$NOTES"
-          done
+          foreach ($project in $projects) {
+            dotnet pack $project `
+              --configuration Release `
+              --no-build `
+              --output ./nupkg `
+              -p:Version=${{ steps.meta.outputs.VERSION }} `
+              "-p:PackageReleaseNotes=$notes"
+          }
 
       - name: Publish to NuGet
         run: >
@@ -104,8 +115,9 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
         run: >
-          gh release create "$GITHUB_REF_NAME"
-          --title "$GITHUB_REF_NAME"
-          --notes-file /tmp/release_notes.md
+          gh release create "$env:GITHUB_REF_NAME"
+          --title "$env:GITHUB_REF_NAME"
+          --notes-file "$env:TEMP\release_notes.md"
           --verify-tag
