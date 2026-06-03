@@ -56,34 +56,20 @@ jobs:
           Write-Host "Publishing version $version"
 
       - name: Restore dependencies
+        shell: pwsh
         run: dotnet restore CacheWeave.slnx
 
-      - name: Build & Test (modern .NET)
+      - name: Test (modern .NET)
         shell: pwsh
         run: |
-          $projects = @(
-            "src/CacheWeave.Core/CacheWeave.Core.csproj"
-            "src/CacheWeave.Redis/CacheWeave.Redis.csproj"
-            "src/CacheWeave.InMemory/CacheWeave.InMemory.csproj"
-            "src/CacheWeave.DistributedCache/CacheWeave.DistributedCache.csproj"
-            "src/CacheWeave.SQLite/CacheWeave.SQLite.csproj"
-            "src/CacheWeave.DynamoDB/CacheWeave.DynamoDB.csproj"
-            "src/CacheWeave.Memcached/CacheWeave.Memcached.csproj"
-            "src/CacheWeave.NCache/CacheWeave.NCache.csproj"
-            "src/CacheWeave.Faster/CacheWeave.Faster.csproj"
-            "tests/CacheWeave.Tests/CacheWeave.Tests.csproj"
-          )
-          foreach ($proj in $projects) {
-            dotnet build $proj --configuration Release --no-restore -p:Version=${{ steps.meta.outputs.VERSION }}
-          }
-          dotnet test tests/CacheWeave.Tests/CacheWeave.Tests.csproj --configuration Release --no-build --verbosity normal
+          dotnet build tests/CacheWeave.Tests/CacheWeave.Tests.csproj --configuration Release --no-restore
+          dotnet test  tests/CacheWeave.Tests/CacheWeave.Tests.csproj --configuration Release --no-build --verbosity normal
 
-      - name: Build & Test (net48 — CacheWeave.Legacy)
+      - name: Test (net48 — CacheWeave.Legacy)
         shell: pwsh
         run: |
-          dotnet build src/CacheWeave.Legacy/CacheWeave.Legacy.csproj --configuration Release --no-restore -p:Version=${{ steps.meta.outputs.VERSION }}
           dotnet build tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj --configuration Release --no-restore
-          dotnet test tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj --configuration Release --no-build --verbosity normal
+          dotnet test  tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj --configuration Release --no-build --verbosity normal
 
       - name: Pack all packages
         shell: pwsh
@@ -104,7 +90,6 @@ jobs:
           foreach ($project in $projects) {
             dotnet pack $project `
               --configuration Release `
-              --no-build `
               --output ./nupkg `
               -p:Version=${{ steps.meta.outputs.VERSION }} `
               "-p:PackageReleaseNotes=$notes"
@@ -113,11 +98,12 @@ jobs:
           Get-ChildItem ./nupkg
 
       - name: Publish to NuGet
-        run: >
-          dotnet nuget push ./nupkg/*.nupkg
-          --api-key ${{ secrets.NUGET_API_KEY }}
-          --source https://api.nuget.org/v3/index.json
-          --skip-duplicate
+        shell: pwsh
+        run: |
+          dotnet nuget push "./nupkg/*.nupkg" `
+            --api-key ${{ secrets.NUGET_API_KEY }} `
+            --source https://api.nuget.org/v3/index.json `
+            --skip-duplicate
 
       - name: Create GitHub Release
         env:
