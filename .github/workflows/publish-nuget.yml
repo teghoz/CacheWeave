@@ -111,8 +111,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
-        run: >
-          gh release create "$env:GITHUB_REF_NAME"
-          --title "$env:GITHUB_REF_NAME"
-          --notes-file "$env:TEMP\release_notes.md"
-          --verify-tag
+        run: |
+          $tag = "v${{ steps.meta.outputs.VERSION }}"
+          # When triggered by a tag push the tag already exists; for workflow_dispatch
+          # it may not, so create/update it pointing at HEAD before creating the release.
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            git tag $tag --force
+            git push origin $tag --force
+            gh release create $tag --title $tag --notes-file "$env:TEMP\release_notes.md"
+          } else {
+            gh release create $tag --title $tag --notes-file "$env:TEMP\release_notes.md" --verify-tag
+          }
