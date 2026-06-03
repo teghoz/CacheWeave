@@ -29,18 +29,30 @@ jobs:
             10.x
 
       - name: Restore dependencies
-        run: dotnet restore CacheWeave.slnx
+        run: dotnet restore CacheWeave.slnx --ignore-failed-sources
 
-      - name: Build
-        run: dotnet build CacheWeave.slnx --configuration Release --no-restore
+      - name: Build (modern .NET projects only)
+        run: |
+          for proj in \
+            src/CacheWeave.Core/CacheWeave.Core.csproj \
+            src/CacheWeave.Redis/CacheWeave.Redis.csproj \
+            src/CacheWeave.InMemory/CacheWeave.InMemory.csproj \
+            src/CacheWeave.DistributedCache/CacheWeave.DistributedCache.csproj \
+            src/CacheWeave.SQLite/CacheWeave.SQLite.csproj \
+            src/CacheWeave.DynamoDB/CacheWeave.DynamoDB.csproj \
+            src/CacheWeave.Memcached/CacheWeave.Memcached.csproj \
+            src/CacheWeave.NCache/CacheWeave.NCache.csproj \
+            src/CacheWeave.Faster/CacheWeave.Faster.csproj \
+            tests/CacheWeave.Tests/CacheWeave.Tests.csproj; do
+            dotnet build "$proj" --configuration Release --no-restore
+          done
 
       - name: Test
         run: >
-          dotnet test CacheWeave.slnx
+          dotnet test tests/CacheWeave.Tests/CacheWeave.Tests.csproj
           --configuration Release
           --no-build
           --verbosity normal
-          --filter "FullyQualifiedName!~CacheWeave.Legacy.Tests"
 
   # ── .NET Framework 4.8 (CacheWeave.Legacy) ───────────────────────────────────
   test-net48:
@@ -60,25 +72,25 @@ jobs:
             10.x
 
       - name: Restore dependencies
-        run: dotnet restore src/CacheWeave.Legacy/CacheWeave.Legacy.csproj
         shell: pwsh
+        run: dotnet restore src/CacheWeave.Legacy/CacheWeave.Legacy.csproj
 
       - name: Restore test dependencies
-        run: dotnet restore tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj
         shell: pwsh
+        run: dotnet restore tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj
 
       - name: Build CacheWeave.Legacy
-        run: dotnet build src/CacheWeave.Legacy/CacheWeave.Legacy.csproj --configuration Release --no-restore
         shell: pwsh
+        run: dotnet build src/CacheWeave.Legacy/CacheWeave.Legacy.csproj --configuration Release --no-restore
 
       - name: Build CacheWeave.Legacy.Tests
-        run: dotnet build tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj --configuration Release --no-restore
         shell: pwsh
+        run: dotnet build tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj --configuration Release --no-restore
 
       - name: Test (net48)
+        shell: pwsh
         run: >
           dotnet test tests/CacheWeave.Legacy.Tests/CacheWeave.Legacy.Tests.csproj
           --configuration Release
           --no-build
           --verbosity normal
-        shell: pwsh
