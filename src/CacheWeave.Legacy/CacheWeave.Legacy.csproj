@@ -16,6 +16,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="CacheWeave.Legacy.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <!-- Core DI and options abstractions compatible with net48 -->
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
         <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />

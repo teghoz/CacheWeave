@@ -77,13 +77,43 @@ namespace CacheWeave.Legacy.Extensions
         public static IServiceCollection AddCacheWeaveRedis(
             this IServiceCollection services,
             string connectionString)
+            => services.AddCacheWeaveRedis(connectionString, configure: null);
+
+        /// <summary>
+        /// Registers the Redis provider using a connection string, allowing the parsed
+        /// <see cref="ConfigurationOptions"/> to be customised.
+        /// </summary>
+        /// <remarks>
+        /// Redis is treated as optional: <see cref="ConfigurationOptions.AbortOnConnectFail"/> is <c>false</c>
+        /// and <see cref="ConfigurationOptions.BacklogPolicy"/> is <see cref="BacklogPolicy.FailFast"/>, so an
+        /// unreachable Redis degrades to an immediate cache miss instead of blocking every command for
+        /// <c>syncTimeout</c>. <paramref name="configure"/> runs after these defaults and can override them.
+        /// </remarks>
+        public static IServiceCollection AddCacheWeaveRedis(
+            this IServiceCollection services,
+            string connectionString,
+            Action<ConfigurationOptions>? configure)
         {
-            var configOpts = ConfigurationOptions.Parse(connectionString);
-            configOpts.AbortOnConnectFail = false;
+            var configOpts = BuildRedisConfigurationOptions(connectionString, configure);
             services.TryAddSingleton<IConnectionMultiplexer>(_ =>
                 ConnectionMultiplexer.Connect(configOpts));
             services.TryAddSingleton<ICacheProviderInner, RedisCacheProvider>();
             return services;
+        }
+
+        internal static ConfigurationOptions BuildRedisConfigurationOptions(
+            string connectionString,
+            Action<ConfigurationOptions>? configure)
+        {
+            var configOpts = ConfigurationOptions.Parse(connectionString);
+
+            // The cache is optional — CacheWeave already treats any cache failure as a miss. Never throw
+            // on connect, and never queue commands waiting for a connection that isn't there.
+            configOpts.AbortOnConnectFail = false;
+            configOpts.BacklogPolicy = BacklogPolicy.FailFast;
+
+            configure?.Invoke(configOpts);
+            return configOpts;
         }
 
         /// <summary>Registers the Redis provider using an existing <see cref="IConnectionMultiplexer"/>.</summary>

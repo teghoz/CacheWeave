@@ -178,6 +178,81 @@ public class RedisCacheProviderTests
             It.Is<RedisKey[]>(k => k.Length == 10),
             It.IsAny<CommandFlags>()), Times.Once);
     }
+
+    // -------------------------------------------------------------------------
+    // Eviction retry — a dropped delete leaves a stale entry, so it rides out a blip
+    // -------------------------------------------------------------------------
+
+    private RedisCacheProvider MakeSutForEviction(bool reconnects)
+    {
+        _multiplexer.Setup(m => m.GetDatabase(It.IsAny<int>(), It.IsAny<object?>())).Returns(_db.Object);
+        _multiplexer.Setup(m => m.GetServers()).Returns([_server.Object]);
+        _multiplexer.Setup(m => m.IsConnected).Returns(reconnects);
+
+        // Zero window when the connection never returns, so the test doesn't wait for it
+        return new RedisCacheProvider(
+            _multiplexer.Object,
+            reconnects ? TimeSpan.FromSeconds(1) : TimeSpan.Zero);
+    }
+
+    private static RedisConnectionException Disconnected()
+        => new(ConnectionFailureType.UnableToConnect, "No connection is active/available");
+
+    [Fact]
+    public async Task RemoveAsync_RetriesOnce_WhenConnectionReturnsWithinWindow()
+    {
+        _db.SetupSequence(d => d.KeyDeleteAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+            .ThrowsAsync(Disconnected())
+            .ReturnsAsync(true);
+
+        var sut = MakeSutForEviction(reconnects: true);
+        await sut.RemoveAsync("k");
+
+        _db.Verify(d => d.KeyDeleteAsync((RedisKey)"k", It.IsAny<CommandFlags>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task RemoveAsync_Throws_WhenConnectionDoesNotReturnWithinWindow()
+    {
+        _db.Setup(d => d.KeyDeleteAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+            .ThrowsAsync(Disconnected());
+
+        var sut = MakeSutForEviction(reconnects: false);
+
+        await sut.Invoking(s => s.RemoveAsync("k"))
+            .Should().ThrowAsync<RedisConnectionException>();
+        _db.Verify(d => d.KeyDeleteAsync((RedisKey)"k", It.IsAny<CommandFlags>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveByPrefixAsync_RetriesOnce_WhenConnectionReturnsWithinWindow()
+    {
+        _server.Setup(s => s.KeysAsync(It.IsAny<int>(), It.IsAny<RedisValue>(), It.IsAny<int>(),
+                It.IsAny<long>(), It.IsAny<int>(), It.IsAny<CommandFlags>()))
+            .Returns(() => new RedisKey[] { "products:1" }.ToAsyncEnumerable());
+        _db.SetupSequence(d => d.KeyDeleteAsync(It.IsAny<RedisKey[]>(), It.IsAny<CommandFlags>()))
+            .ThrowsAsync(Disconnected())
+            .ReturnsAsync(1);
+
+        var sut = MakeSutForEviction(reconnects: true);
+        await sut.RemoveByPrefixAsync("products:");
+
+        _db.Verify(d => d.KeyDeleteAsync(It.IsAny<RedisKey[]>(), It.IsAny<CommandFlags>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task GetAsync_DoesNotRetry_WhenConnectionFails()
+    {
+        _db.Setup(d => d.StringGetAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+            .ThrowsAsync(Disconnected());
+
+        var sut = MakeSutForEviction(reconnects: true);
+
+        // Reads stay fail-fast — a dropped read is just a cache miss
+        await sut.Invoking(s => s.GetAsync("k"))
+            .Should().ThrowAsync<RedisConnectionException>();
+        _db.Verify(d => d.StringGetAsync((RedisKey)"k", It.IsAny<CommandFlags>()), Times.Once);
+    }
 }
 
 // Helper to convert IEnumerable<RedisKey> to IAsyncEnumerable<RedisKey>
