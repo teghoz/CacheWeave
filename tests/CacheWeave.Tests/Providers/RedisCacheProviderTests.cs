@@ -240,6 +240,22 @@ public class RedisCacheProviderTests
         _db.Verify(d => d.KeyDeleteAsync(It.IsAny<RedisKey[]>(), It.IsAny<CommandFlags>()), Times.Exactly(2));
     }
 
+
+    [Fact]
+    public async Task RemoveAsync_RetriesOnce_WhenConnectionReturnsAfterAPoll()
+    {
+        _multiplexer.Setup(m => m.GetDatabase(It.IsAny<int>(), It.IsAny<object?>())).Returns(_db.Object);
+        // Disconnected on the first poll, back by the second — the shape of a short failover
+        _multiplexer.SetupSequence(m => m.IsConnected).Returns(false).Returns(true);
+        _db.SetupSequence(d => d.KeyDeleteAsync(It.IsAny<RedisKey>(), It.IsAny<CommandFlags>()))
+            .ThrowsAsync(Disconnected())
+            .ReturnsAsync(true);
+
+        var sut = new RedisCacheProvider(_multiplexer.Object, TimeSpan.FromSeconds(5));
+        await sut.RemoveAsync("k");
+
+        _db.Verify(d => d.KeyDeleteAsync((RedisKey)"k", It.IsAny<CommandFlags>()), Times.Exactly(2));
+    }
     [Fact]
     public async Task GetAsync_DoesNotRetry_WhenConnectionFails()
     {
