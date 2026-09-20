@@ -77,23 +77,79 @@ namespace CacheWeave.Legacy.Extensions
         public static IServiceCollection AddCacheWeaveRedis(
             this IServiceCollection services,
             string connectionString)
+            => services.AddCacheWeaveRedis(connectionString, configureConnection: null);
+
+        /// <summary>
+        /// Registers the Redis provider using a connection string, allowing the parsed
+        /// <see cref="ConfigurationOptions"/> to be customised.
+        /// </summary>
+        /// <remarks>
+        /// Redis is treated as optional: <see cref="ConfigurationOptions.AbortOnConnectFail"/> is <c>false</c>
+        /// and <see cref="ConfigurationOptions.BacklogPolicy"/> is <see cref="BacklogPolicy.FailFast"/>, so an
+        /// unreachable Redis degrades to an immediate cache miss instead of blocking every command for
+        /// <c>syncTimeout</c>. <paramref name="configureConnection"/> runs after these defaults and can override them.
+        /// </remarks>
+        /// <param name="configureConnection">Adjusts the connection options (TLS, auth, timeouts, backlog policy).</param>
+        /// <param name="configureCache">Adjusts provider behaviour (eviction retry, SCAN page size).</param>
+        public static IServiceCollection AddCacheWeaveRedis(
+            this IServiceCollection services,
+            string connectionString,
+            Action<ConfigurationOptions>? configureConnection,
+            Action<RedisCacheOptions>? configureCache = null)
         {
-            var configOpts = ConfigurationOptions.Parse(connectionString);
-            configOpts.AbortOnConnectFail = false;
+            var configOpts = BuildRedisConfigurationOptions(connectionString, configureConnection);
+            services.ConfigureRedisCache(configureCache);
             services.TryAddSingleton<IConnectionMultiplexer>(_ =>
                 ConnectionMultiplexer.Connect(configOpts));
             services.TryAddSingleton<ICacheProviderInner, RedisCacheProvider>();
             return services;
         }
 
+        internal static ConfigurationOptions BuildRedisConfigurationOptions(
+            string connectionString,
+            Action<ConfigurationOptions>? configure)
+        {
+            var configOpts = ConfigurationOptions.Parse(connectionString);
+
+            // The cache is optional — CacheWeave already treats any cache failure as a miss. Never throw
+            // on connect, and never queue commands waiting for a connection that isn't there.
+            configOpts.AbortOnConnectFail = false;
+            configOpts.BacklogPolicy = BacklogPolicy.FailFast;
+
+            configure?.Invoke(configOpts);
+            return configOpts;
+        }
+
         /// <summary>Registers the Redis provider using an existing <see cref="IConnectionMultiplexer"/>.</summary>
         public static IServiceCollection AddCacheWeaveRedis(
             this IServiceCollection services,
             IConnectionMultiplexer multiplexer)
+            => services.AddCacheWeaveRedis(multiplexer, configureCache: null);
+
+        /// <summary>
+        /// Registers the Redis provider using an existing <see cref="IConnectionMultiplexer"/>,
+        /// allowing the provider's own behaviour to be customised.
+        /// </summary>
+        /// <param name="configureCache">Adjusts provider behaviour (eviction retry, SCAN page size).</param>
+        public static IServiceCollection AddCacheWeaveRedis(
+            this IServiceCollection services,
+            IConnectionMultiplexer multiplexer,
+            Action<RedisCacheOptions>? configureCache)
         {
+            services.ConfigureRedisCache(configureCache);
             services.TryAddSingleton(multiplexer);
             services.TryAddSingleton<ICacheProviderInner, RedisCacheProvider>();
             return services;
+        }
+
+        private static void ConfigureRedisCache(
+            this IServiceCollection services,
+            Action<RedisCacheOptions>? configureCache)
+        {
+            if (configureCache != null)
+                services.Configure(configureCache);
+            else
+                services.AddOptions<RedisCacheOptions>();
         }
 
         // ── InMemory ─────────────────────────────────────────────────────────

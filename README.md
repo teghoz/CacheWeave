@@ -183,6 +183,58 @@ Multiple `[CacheWeaveEvict]` attributes are allowed on a single action.
 | `CacheWeave.Faster` | Microsoft FASTER KV | No | net8/9/10 |
 | `CacheWeave.Legacy` | Redis, InMemory, SQLite, DynamoDB, NCache | Depends on provider | **net48** |
 
+### Redis connection behaviour
+
+Redis is treated as optional. `AddCacheWeaveRedis(connectionString)` parses the connection string and then sets:
+
+| Setting | Value | Effect |
+|---|---|---|
+| `AbortOnConnectFail` | `false` | Startup never fails because Redis is down; the multiplexer keeps reconnecting in the background |
+| `BacklogPolicy` | `FailFast` | While disconnected, cache commands fail immediately and the request proceeds as a cache miss, instead of each command queueing for up to `syncTimeout` |
+
+All other settings (`connectTimeout`, `connectRetry`, `syncTimeout`, `asyncTimeout`, `ssl`, `password`, …) come from the connection string. For anything a connection string can't express, pass a `configure` callback — it runs after the defaults above and can override them:
+
+```csharp
+builder.Services.AddCacheWeaveRedis("my-redis:6380,ssl=true",
+    configureConnection: redis =>
+    {
+        redis.ConnectTimeout = 1000;
+        redis.BacklogPolicy  = BacklogPolicy.Default; // opt back in to queueing during brief disconnects
+    },
+    configureCache: cache =>
+    {
+        cache.EvictionRetryWindow = TimeSpan.FromSeconds(3);
+    });
+
+// Or bring your own multiplexer (Sentinel, Azure token auth, shared with the rest of your app)
+builder.Services.AddCacheWeaveRedis(existingMultiplexer);
+builder.Services.AddCacheWeaveRedis(existingMultiplexer, cache => cache.ScanPageSize = 1000);
+```
+
+Provider behaviour is configured separately from the connection, via `RedisCacheOptions`:
+
+| Property | Type | Default | Description |
+|---|---|---|---|
+| `EvictionRetryWindow` | `TimeSpan` | `1.5s` | How long an eviction waits for a reconnect before giving up. `TimeSpan.Zero` disables the retry |
+| `ReconnectPollInterval` | `TimeSpan` | `50ms` | How often the connection is polled while inside that window |
+| `ScanPageSize` | `int` | `250` | SCAN page size and DEL batch size for prefix eviction |
+
+If an `IConnectionMultiplexer` is already registered when `AddCacheWeaveRedis(connectionString)` is called, CacheWeave uses it rather than creating its own.
+
+#### Evictions during a brief outage
+
+Fail-fast is the right trade for reads and writes — a dropped one is just a cache miss. Evictions are
+different: a `[CacheWeaveEvict]` delete that never reaches Redis leaves the old entry being served
+until it expires. So evictions, and only evictions, wait up to **1.5s** for the multiplexer to
+reconnect and then retry once. A failover or short network blip therefore still invalidates, while a
+genuine outage costs a write request 1.5s at most, once per eviction, instead of `syncTimeout` on
+every operation. Tune that window with `EvictionRetryWindow`, or set it to `TimeSpan.Zero` to opt out
+of the retry entirely.
+
+If the retry doesn't get through, `CacheWeaveEvictFilter` logs a warning (`eviction failed … cache
+may be stale`) and the request still succeeds. Watch for that warning if you need to know when the
+cache and your data have diverged.
+
 ---
 
 ## .NET Framework 4.8 Support (`CacheWeave.Legacy`)
