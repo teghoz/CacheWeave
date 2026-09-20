@@ -17,6 +17,10 @@
     </ItemGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="CacheWeave.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
         <ProjectReference Include="..\CacheWeave.Core\CacheWeave.Core.csproj" />
     </ItemGroup>
 
