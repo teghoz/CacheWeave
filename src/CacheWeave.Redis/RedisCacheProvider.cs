@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using CacheWeave.Core.Abstractions;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 
@@ -11,27 +12,29 @@ namespace CacheWeave.Redis;
 /// </summary>
 public sealed class RedisCacheProvider : ICacheProviderInner
 {
-    /// <summary>
-    /// How long an eviction waits for the multiplexer to reconnect before giving up. Reads and writes
-    /// fail fast — a dropped one is just a cache miss — but a dropped eviction leaves a stale entry
-    /// being served until it expires, so evictions ride out a brief failover instead.
-    /// </summary>
-    private static readonly TimeSpan DefaultEvictionRetryWindow = TimeSpan.FromSeconds(1.5);
-
-    private static readonly TimeSpan ReconnectPollInterval = TimeSpan.FromMilliseconds(50);
-
     private readonly IConnectionMultiplexer _multiplexer;
-    private readonly TimeSpan _evictionRetryWindow;
+    private readonly RedisCacheOptions _options;
 
+    /// <summary>Uses the default <see cref="RedisCacheOptions"/>.</summary>
     public RedisCacheProvider(IConnectionMultiplexer multiplexer)
-        : this(multiplexer, DefaultEvictionRetryWindow)
+        : this(multiplexer, Options.Create(new RedisCacheOptions()))
     {
     }
 
-    internal RedisCacheProvider(IConnectionMultiplexer multiplexer, TimeSpan evictionRetryWindow)
+    public RedisCacheProvider(IConnectionMultiplexer multiplexer, IOptions<RedisCacheOptions> options)
     {
         _multiplexer = multiplexer;
-        _evictionRetryWindow = evictionRetryWindow;
+        _options = options.Value;
+
+        if (_options.EvictionRetryWindow < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(options),
+                $"{nameof(RedisCacheOptions.EvictionRetryWindow)} cannot be negative.");
+        if (_options.ReconnectPollInterval <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(options),
+                $"{nameof(RedisCacheOptions.ReconnectPollInterval)} must be greater than zero.");
+        if (_options.ScanPageSize < 1)
+            throw new ArgumentOutOfRangeException(nameof(options),
+                $"{nameof(RedisCacheOptions.ScanPageSize)} must be at least 1.");
     }
 
     private IDatabase Db => _multiplexer.GetDatabase();
@@ -55,7 +58,7 @@ public sealed class RedisCacheProvider : ICacheProviderInner
 
     private async Task ScanAndDeleteAsync(string prefix, CancellationToken cancellationToken)
     {
-        const int batchSize = 250;
+        var batchSize = _options.ScanPageSize;
         var pattern = $"{prefix}*";
         var db = Db;
         var batch = new List<RedisKey>(batchSize);
@@ -86,8 +89,8 @@ public sealed class RedisCacheProvider : ICacheProviderInner
 
     /// <summary>
     /// Runs an eviction, retrying once if the connection was unavailable but comes back within
-    /// <see cref="_evictionRetryWindow"/>. Deleting an already-deleted key is a no-op, so replaying
-    /// a partially applied eviction is safe.
+    /// <see cref="RedisCacheOptions.EvictionRetryWindow"/>. Deleting an already-deleted key is a
+    /// no-op, so replaying a partially applied eviction is safe.
     /// </summary>
     private async Task EvictAsync(Func<Task> evict, CancellationToken cancellationToken)
     {
@@ -98,7 +101,7 @@ public sealed class RedisCacheProvider : ICacheProviderInner
         }
         catch (RedisConnectionException)
         {
-            if (!await WaitForReconnectAsync(cancellationToken))
+            if (_options.EvictionRetryWindow <= TimeSpan.Zero || !await WaitForReconnectAsync(cancellationToken))
                 throw;
         }
 
@@ -111,10 +114,10 @@ public sealed class RedisCacheProvider : ICacheProviderInner
 
         while (!_multiplexer.IsConnected)
         {
-            if (stopwatch.Elapsed >= _evictionRetryWindow || cancellationToken.IsCancellationRequested)
+            if (stopwatch.Elapsed >= _options.EvictionRetryWindow || cancellationToken.IsCancellationRequested)
                 return false;
 
-            await Task.Delay(ReconnectPollInterval, cancellationToken);
+            await Task.Delay(_options.ReconnectPollInterval, cancellationToken);
         }
 
         return true;

@@ -4,33 +4,36 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using CacheWeave.Legacy.Abstractions;
+using Microsoft.Extensions.Options;
 using StackExchange.Redis;
 
 namespace CacheWeave.Legacy.Providers
 {
     public sealed class RedisCacheProvider : ICacheProviderInner
     {
-        /// <summary>
-        /// How long an eviction waits for the multiplexer to reconnect before giving up. Reads and writes
-        /// fail fast — a dropped one is just a cache miss — but a dropped eviction leaves a stale entry
-        /// being served until it expires, so evictions ride out a brief failover instead.
-        /// </summary>
-        private static readonly TimeSpan DefaultEvictionRetryWindow = TimeSpan.FromSeconds(1.5);
-
-        private static readonly TimeSpan ReconnectPollInterval = TimeSpan.FromMilliseconds(50);
-
         private readonly IConnectionMultiplexer _multiplexer;
-        private readonly TimeSpan _evictionRetryWindow;
+        private readonly RedisCacheOptions _options;
 
+        /// <summary>Uses the default <see cref="RedisCacheOptions"/>.</summary>
         public RedisCacheProvider(IConnectionMultiplexer multiplexer)
-            : this(multiplexer, DefaultEvictionRetryWindow)
+            : this(multiplexer, Options.Create(new RedisCacheOptions()))
         {
         }
 
-        internal RedisCacheProvider(IConnectionMultiplexer multiplexer, TimeSpan evictionRetryWindow)
+        public RedisCacheProvider(IConnectionMultiplexer multiplexer, IOptions<RedisCacheOptions> options)
         {
             _multiplexer = multiplexer;
-            _evictionRetryWindow = evictionRetryWindow;
+            _options = options.Value;
+
+            if (_options.EvictionRetryWindow < TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(options),
+                    nameof(RedisCacheOptions.EvictionRetryWindow) + " cannot be negative.");
+            if (_options.ReconnectPollInterval <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(options),
+                    nameof(RedisCacheOptions.ReconnectPollInterval) + " must be greater than zero.");
+            if (_options.ScanPageSize < 1)
+                throw new ArgumentOutOfRangeException(nameof(options),
+                    nameof(RedisCacheOptions.ScanPageSize) + " must be at least 1.");
         }
 
         private IDatabase Db => _multiplexer.GetDatabase();
@@ -52,17 +55,18 @@ namespace CacheWeave.Legacy.Providers
 
         private async Task ScanAndDeleteAsync(string prefix)
         {
+            var batchSize = _options.ScanPageSize;
             var db = Db;
             foreach (var server in _multiplexer.GetServers())
             {
                 if (server.IsReplica)
                     continue;
 
-                var batch = new List<RedisKey>(250);
-                await foreach (var key in server.KeysAsync(pattern: $"{prefix}*", pageSize: 250).ConfigureAwait(false))
+                var batch = new List<RedisKey>(batchSize);
+                await foreach (var key in server.KeysAsync(pattern: $"{prefix}*", pageSize: batchSize).ConfigureAwait(false))
                 {
                     batch.Add(key);
-                    if (batch.Count == 250)
+                    if (batch.Count == batchSize)
                     {
                         await db.KeyDeleteAsync(batch.ToArray()).ConfigureAwait(false);
                         batch.Clear();
@@ -76,8 +80,8 @@ namespace CacheWeave.Legacy.Providers
 
         /// <summary>
         /// Runs an eviction, retrying once if the connection was unavailable but comes back within
-        /// <see cref="_evictionRetryWindow"/>. Deleting an already-deleted key is a no-op, so replaying
-        /// a partially applied eviction is safe.
+        /// <see cref="RedisCacheOptions.EvictionRetryWindow"/>. Deleting an already-deleted key is a
+        /// no-op, so replaying a partially applied eviction is safe.
         /// </summary>
         private async Task EvictAsync(Func<Task> evict, CancellationToken cancellationToken)
         {
@@ -88,7 +92,8 @@ namespace CacheWeave.Legacy.Providers
             }
             catch (RedisConnectionException)
             {
-                if (!await WaitForReconnectAsync(cancellationToken).ConfigureAwait(false))
+                if (_options.EvictionRetryWindow <= TimeSpan.Zero
+                    || !await WaitForReconnectAsync(cancellationToken).ConfigureAwait(false))
                     throw;
             }
 
@@ -101,10 +106,10 @@ namespace CacheWeave.Legacy.Providers
 
             while (!_multiplexer.IsConnected)
             {
-                if (stopwatch.Elapsed >= _evictionRetryWindow || cancellationToken.IsCancellationRequested)
+                if (stopwatch.Elapsed >= _options.EvictionRetryWindow || cancellationToken.IsCancellationRequested)
                     return false;
 
-                await Task.Delay(ReconnectPollInterval, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(_options.ReconnectPollInterval, cancellationToken).ConfigureAwait(false);
             }
 
             return true;

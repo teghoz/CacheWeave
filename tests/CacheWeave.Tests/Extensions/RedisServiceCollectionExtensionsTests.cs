@@ -2,6 +2,7 @@ using CacheWeave.Redis;
 using CacheWeave.Redis.Extensions;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Moq;
 using StackExchange.Redis;
 using Xunit;
@@ -99,6 +100,54 @@ public class RedisServiceCollectionExtensionsTests
         var services = new ServiceCollection().AddCacheWeaveRedis(" ");
 
         services.Should().NotContain(d => d.ServiceType == typeof(IConnectionMultiplexer));
+    }
+
+    // -------------------------------------------------------------------------
+    // RedisCacheOptions — provider behaviour knobs
+    // -------------------------------------------------------------------------
+
+    [Fact]
+    public void AddCacheWeaveRedis_DefaultsRedisCacheOptions_WhenNotConfigured()
+    {
+        var sp = new ServiceCollection()
+            .AddLogging()
+            .AddCacheWeaveRedis("localhost:6379")
+            .BuildServiceProvider();
+
+        var options = sp.GetRequiredService<IOptions<RedisCacheOptions>>().Value;
+
+        options.EvictionRetryWindow.Should().Be(TimeSpan.FromSeconds(1.5));
+        options.ReconnectPollInterval.Should().Be(TimeSpan.FromMilliseconds(50));
+        options.ScanPageSize.Should().Be(250);
+    }
+
+    [Fact]
+    public void AddCacheWeaveRedis_AppliesConfigureCache()
+    {
+        var sp = new ServiceCollection()
+            .AddLogging()
+            .AddCacheWeaveRedis("localhost:6379", configureConnection: null, configureCache: o =>
+            {
+                o.EvictionRetryWindow = TimeSpan.Zero;
+                o.ScanPageSize = 1000;
+            })
+            .BuildServiceProvider();
+
+        var options = sp.GetRequiredService<IOptions<RedisCacheOptions>>().Value;
+
+        options.EvictionRetryWindow.Should().Be(TimeSpan.Zero);
+        options.ScanPageSize.Should().Be(1000);
+    }
+
+    [Fact]
+    public void AddCacheWeaveRedis_MultiplexerOverload_AppliesConfigureCache()
+    {
+        var sp = new ServiceCollection()
+            .AddLogging()
+            .AddCacheWeaveRedis(new Mock<IConnectionMultiplexer>().Object, o => o.ScanPageSize = 25)
+            .BuildServiceProvider();
+
+        sp.GetRequiredService<IOptions<RedisCacheOptions>>().Value.ScanPageSize.Should().Be(25);
     }
 
     // -------------------------------------------------------------------------

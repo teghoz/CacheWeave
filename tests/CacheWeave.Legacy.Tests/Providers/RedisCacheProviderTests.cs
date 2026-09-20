@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using CacheWeave.Legacy.Providers;
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using Moq;
 using StackExchange.Redis;
 using Xunit;
@@ -25,7 +26,10 @@ namespace CacheWeave.Legacy.Tests.Providers
 
             return new RedisCacheProvider(
                 _multiplexer.Object,
-                reconnects ? TimeSpan.FromSeconds(1) : TimeSpan.Zero);
+                Options.Create(new RedisCacheOptions
+                {
+                    EvictionRetryWindow = reconnects ? TimeSpan.FromSeconds(1) : TimeSpan.Zero
+                }));
         }
 
         private static RedisConnectionException Disconnected()
