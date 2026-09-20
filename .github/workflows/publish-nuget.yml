@@ -75,6 +75,10 @@ jobs:
         shell: pwsh
         run: |
           $notes = Get-Content "$env:TEMP\release_notes.md" -Raw
+          # MSBuild splits -p: values on commas and semicolons, so a release note
+          # containing either aborts the pack with MSB1006. Escape them (and the
+          # escape character itself, first) — MSBuild unescapes on the way in.
+          $notes = $notes.Replace('%', '%25').Replace(',', '%2C').Replace(';', '%3B')
           $projects = @(
             "src/CacheWeave.Core/CacheWeave.Core.csproj"
             "src/CacheWeave.Redis/CacheWeave.Redis.csproj"
